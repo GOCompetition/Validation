@@ -1,15 +1,15 @@
 '''
-syntax
+syntax:
 python validation.py <raw> <con> <inl> <mon> <sub>
-
 '''
 
 import argparse
+from GOValid import GOValid_func
 
 def run_main(raw, con, inl, mon, sub):
     """run with given file names"""
-
     # Ahmad please put (or import/call) your code here
+    GOValid_func(raw,con,inl,mon,sub)
     
 def run():
     """parse file names and run"""
@@ -31,7 +31,7 @@ def run():
         mon = args.mon
         sub = args.sub
     except:
-        print "exception in parsing the validation command"
+        print ("exception in parsing the validation command")
         raise
     else:
         run_main(raw, con, inl, mon, sub)
