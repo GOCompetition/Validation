@@ -71,7 +71,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
     # Options to performe the ACCC simulation
     tol = 0.5 
 
-    options = [0, 0, 0, 1, 1, 0, 0, 0, 1, 3, 1] 
+    options = [0, 0, 0, 1, 1, 0, 0, 0, 1, 4, 1] 
 
     subsystem = 'ALL'
 
@@ -215,6 +215,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
     
     geninfotmp = zip(vgenpmaxtmp, vgenpmintmp)
     genbusdicttmp = {}
+    genslackdroop = {}
     for igentmp in range(0, len(vgenbusnotmp)):
         genbusdicttmp.update({vgenbusnotmp[igentmp]: geninfotmp[igentmp]}) 
                 
@@ -238,7 +239,15 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
         
         partxt = oneline.split(',')
         igenbustmp = int(partxt[0])
+        igenidtmp = str(partxt[1].strip())
         if igenbustmp in genbusdicttmp:
+            # Storing the slack generators droop
+            ierr, vgenbustype = psspy.busint(igenbustmp ,'TYPE')
+            if vgenbustype==3:
+                genbuskeytmp = str(igenbustmp)+'-'+igenidtmp
+                genslackdroop.update({genbuskeytmp: float(partxt[5].strip())})
+
+            # checking pmax and pmin values in inl file
             if abs(float(partxt[3]) - 0.0 )<0.000001 and abs(float(partxt[4]) - 0.0 )<0.000001:
                 
                 str_pmax = "%6.3f" %(genbusdicttmp[igenbustmp][0]/100.0)
@@ -282,7 +291,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
     # RUN SCOPF from PSS/E
     print ('------------------start  SCOPF for case:' + case + '  ------------------')
     
-    ierr = psspy.pscopf_2([0,0,0,0,1,0,1,0,0,0,0,0,1,0,3,1,2,1,2,30,2,1,1,0,0,0,0,1],
+    ierr = psspy.pscopf_2([0,0,0,0,1,0,1,0,0,0,0,0,1,0,4,1,2,1,2,30,2,1,1,0,0,0,0,1],
                    [ 0.5, 100.0, 98.0, 0.02, 0.1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
                    [r"""ALL""",r"""ALL""",r"""ALL""",r"""ALL""",r"""ALL""",r"""ALL""",r"""ALL"""],
                    scopfdfx,fileINL, "")
@@ -325,12 +334,14 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
             swingbus.append(vbasebusno[ibustmp])
     
     basecase_gen_dict = {}
+    basecase_gen_dict_stat = {}
     swing_gen = []
     
     for igentmp in range(0, len(vbasecasegenbusno)):
         genbuskeytmp = str(vbasecasegenbusno[igentmp])+'-'+vbasecasegenid[igentmp].strip()
         genptmp = vbasecasegenp[igentmp] * vbasecasegenstatus[igentmp]
         basecase_gen_dict.update({genbuskeytmp:genptmp})
+        basecase_gen_dict_stat.update({genbuskeytmp:vbasecasegenstatus[igentmp]})
         
         # here we also need to find the swing generators
         if vbasecasegenbusno[igentmp] in swingbus:
@@ -407,7 +418,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
         print "type:", type(vbusno)
         ierr, rarray = psspy. abusreal(-1, 1, 'PU')  
         vbusmag = rarray[0]  # this array has all the bus voltage magnitude
-        ierr, rarray = psspy. abusreal(-1, 1, 'ANGLE')  
+        ierr, rarray = psspy. abusreal(-1, 1, 'ANGLED')  
         vbusangle = rarray[0]      # this array has all the bus voltage angle, in ardians
         
         # generator section
@@ -451,20 +462,31 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
         # start compute the delta value for the contingency
         vgen_delta_dict= {}
         totalgendelta = 0.0
-        
+        deltatmp_swing = 0.0
+        genloss = 0.0
+        swing_count = 0.0
+        if str(cont) == "GEN-416-1":
+            print "I am here too"
         for igentmp in range(0, len(vgenbusno)):
+            if vgenbusno[igentmp]== 416:
+                print "I am here too"
             genbuskeytmp = str(vgenbusno[igentmp])+'-'+vgenid[igentmp].strip()
             genptmp = vgenp[igentmp] * vgenstatus[igentmp]
             
             basegenp = basecase_gen_dict[genbuskeytmp]
             deltatmp = genptmp - basegenp
+
+            # check the amount of generation lost
+            basegenstat = basecase_gen_dict_stat[genbuskeytmp]
+            if basegenstat == 1 and vgenstatus[igentmp] == 0:
+                genloss = genloss + basegenp
             
-            '''
-            # here we also need to excluded the swing generators
+            
+            # Check the amount of delta that appears in slack bus
             if genbuskeytmp in swing_gen:
-                deltatmp = 0.0
-                print('!!!!testout-----------------Swing Gen is ' + genbuskeytmp + ': ' + str(deltatmp))
-            '''
+                deltatmp_swing = deltatmp_swing + deltatmp
+                swing_count = swing_count+1.0
+                #print('!!!!testout-----------------Swing Gen is ' + genbuskeytmp + ': ' + str(deltatmp))
                 
             vgen_delta_dict.update({genbuskeytmp:deltatmp})                    
             tmpstr = 'GEN-'+genbuskeytmp
@@ -480,6 +502,102 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
                     print('!!!!testout-----------------Outrage Gen is ' + tmpstr + ': ' + str(deltatmp))
                     
             totalgendelta = totalgendelta + deltatmp        
+
+        # check if delta is seen in slack only and if yes re-adjust slack and run inlf
+        if str(cont) == "GEN-416-1":
+            print "I am here too"
+        if (totalgendelta>genloss and abs(deltatmp_swing)>1.0) or (deltatmp_swing<0.0):
+            #need to modify slack generation back to base case
+            for igentmp in range(0, len(vgenbusno)):
+                if vgenbusno[igentmp] ==223:
+                    print "I am here"
+                ierr, vgenbustype = psspy.busint(vgenbusno[igentmp] ,'TYPE')
+                if vgenstatus[igentmp]==1 and vgenbustype==3:
+                    genbuskeytmp = str(vgenbusno[igentmp])+'-'+vgenid[igentmp].strip()
+                    slackdroop = genslackdroop[genbuskeytmp]
+                    
+                    ierr = psspy.machine_chng_2(vgenbusno[igentmp], vgenid[igentmp], realar1=vgenp[igentmp]-1.04*(deltatmp_swing/swing_count-genloss*slackdroop))
+
+            ierr = psspy.inlf_2([1,0,0,0,1,0,0,0], fileINL)
+            
+            # now redo the data collection
+            # extract data for solution 1 and solution 2
+            # bus section
+            ierr, iarray = psspy.abusint(-1, 1, 'NUMBER')
+            vbusno = iarray[0]   # this array has all the bus number
+            print "type:", type(vbusno)
+            ierr, rarray = psspy. abusreal(-1, 1, 'PU')  
+            vbusmag = rarray[0]  # this array has all the bus voltage magnitude
+            ierr, rarray = psspy. abusreal(-1, 1, 'ANGLED')  
+            vbusangle = rarray[0]      # this array has all the bus voltage angle, in ardians
+            
+            # generator section
+            ierr, iarray = psspy.amachint(-1, 4, 'NUMBER')
+            vgenbusno = iarray[0] # this array has all the generator's bus number, including both in-service and out-service
+            ierr, iarray = psspy.amachint(-1, 4, 'STATUS')
+            vgenstatus = iarray[0] # this array has all the generator's status: in-service (1) and out-service (0)
+            ierr, carray = psspy.amachchar(-1, 4, 'ID')
+            vgenid = carray[0] # this array has all the generator's ID, string
+            ierr, rarray = psspy.amachreal(-1, 4, 'PGEN')
+            vgenp = map(lambda (a,b):a*b,zip(vgenstatus,rarray[0] ))    # this array has all the generator's Active power output P, MW
+            ierr, rarray = psspy.amachreal(-1, 4, 'QGEN')
+            vgenq = map(lambda (a,b):a*b,zip(vgenstatus,rarray[0] )) # this array has all the generator's Reactive power output Q, MVar
+            ierr, iarray = psspy.amachint(-1, 4, 'TYPE')
+            vgenbustype = iarray[0] # this array has all the generator's bus number, including both in-service and out-service
+            # switched shunts section
+            ierr, iarray = psspy.aswshint(-1, 4, 'NUMBER')
+            swshuntbusno = iarray[0] # this array has all the switched shunts bus number
+        
+            ierr, iarray = psspy.aswshint(-1, 4, 'STATUS')
+            swshuntstatus = iarray[0] # this array has all the switched shunts status
+        
+            ierr, rarray = psspy.aswshreal(-1, 4, 'BSWNOM')
+            swshunt_inival = rarray[0] # this array has all the switched shunts status
+            
+            # form the switched shunt dictionary
+            shunt_dict = {}
+            vbus_shunt_val = []
+            for ibustmp in range(0, len(swshuntbusno)):
+                shuntkeytmp = swshuntbusno[ibustmp]
+                shuntval = swshuntstatus[ibustmp] * swshunt_inival[ibustmp]
+                shunt_dict.update({shuntkeytmp:shuntval})
+                
+            # form the switched shunt values (b) for each bus
+            for ibustmp in range(0, len(vbusno)):
+                busnotmp = vbusno[ibustmp]
+                if busnotmp in shunt_dict.keys():
+                    vbus_shunt_val.append(shunt_dict[busnotmp])
+                else:
+                    vbus_shunt_val.append(0.0)
+            
+            # start compute the delta value for the contingency
+            vgen_delta_dict= {}
+            totalgendelta = 0.0
+            deltatmp_swing = 0.0
+
+            for igentmp in range(0, len(vgenbusno)):
+                genbuskeytmp = str(vgenbusno[igentmp])+'-'+vgenid[igentmp].strip()
+                genptmp = vgenp[igentmp] * vgenstatus[igentmp]
+                
+                basegenp = basecase_gen_dict[genbuskeytmp]
+                deltatmp = genptmp - basegenp
+                
+                vgen_delta_dict.update({genbuskeytmp:deltatmp})                    
+                tmpstr = 'GEN-'+genbuskeytmp
+                                
+                if cont in cont_gen_dict.keys():
+                    
+                    contgen_info = cont_gen_dict[cont]   
+                    #print ('contgen_info')
+                    #print contgen_info
+                    
+                    if str(vgenbusno[igentmp]) == contgen_info[0] and vgenid[igentmp].strip() == contgen_info[1] :
+                        deltatmp = 0.0
+                        print('!!!!testout-----------------Outrage Gen is ' + tmpstr + ': ' + str(deltatmp))
+                        
+                totalgendelta = totalgendelta + deltatmp     	
+            
+            
         
         #totalgendelta is the delta value for the case    
         cases_delta_dict.update ({cont:totalgendelta})  
@@ -502,12 +620,17 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
         ############ below we start to write solution file for compeitiont format
         solutin1file = address + '\\' +case  + '_solution1.txt'
         solutin2file = address + '\\' +case + '_solution2.txt'
-
+        '''
+        if os.path.exists(solutin1file):
+            os.remove (solutin1file)
+        if os.path.exists(solutin2file):
+            os.remove (solutin2file)
+        '''
         System = COMPET_FORM(cont,solutin1file, solutin2file, vbusno, vbusmag,vbusangle,vgenbusno,vgenid, vgenp, vgenq, vbus_shunt_val,totalgendelta)
         
         # save each post-contingency case in both raw and sav format
         # psspy.save(scopfaddress + '\\' + caseX +'\\'+caseX +"_" + str(cont)+'.sav')
-        psspy.rawd_2(0,1,[1,1,1,0,0,0,0],0,scopfaddress + '\\' + case +"_" + str(cont)+'.raw')
+        psspy.rawd_2(0,1,[1,1,1,0,0,0,0],0,scopfaddress + '\\' + case + '\\' + case +"_" + str(cont)+'.raw')
     
     # if cont_con_array is not empty, which means ACCC ignores some contingencies, 
     # output solution1 as solution2 for these contingencies 
@@ -539,12 +662,12 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
             
 
 '''
-rawfile = 'case14.raw'
-confile = 'case14.con'
-inlfile = 'case14.inl'
+rawfile = 'case.raw'
+confile = 'case.con'
+inlfile = 'case.inl'
 monfile = 'All.mon'
 subfile = 'All_SDET.sub'
-GOValid(rawfile,confile,inlfile,monfile,subfile)
+GOValid_func(rawfile,confile,inlfile,monfile,subfile)
 
-GOValid('case14.raw','case14.con','case14.inl','All.mon','All_SDET.sub')
+GOValid_func('case14.raw','case14.con','case14.inl','All.mon','All_SDET.sub')
 '''
