@@ -69,7 +69,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
     ### ------------------- input output data section ends -------------------------------------------------------------------
 
     # Options to performe the ACCC simulation
-    tol = 0.5 
+    tol = 0.5 # this is tolerance
 
     options = [0, 0, 0, 1, 1, 0, 0, 0, 1, 4, 1] 
 
