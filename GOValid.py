@@ -10,7 +10,8 @@
 #       - change remote bus to 0 (self) for all generators
 #       - change voltage set point after SCOPF
 # 0824 - including eps tolerance for Bmin and Bmax
-
+# 0825 - inl modified copy saved in subfolder
+#       - remove existing solution files
 import sys, os, csv
 
 PSSE_LOCATION = r"C:\Program Files (x86)\PTI\PSSE33\PSSBIN"
@@ -21,7 +22,7 @@ import redirect
 redirect.psse2py()
 import psspy
 import re
-
+import numpy
 import pssarrays
 #import matplotlib.pyplot as plt
 import csv
@@ -60,7 +61,7 @@ def id_cases(address):
 # please modify the names of the supporting files from line 64 to 67 accordingly
 
 
-def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
+def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     # This is the 'root' directory name for a set of cases and supporting files
     # please modify it accordingly
     case = str(rawfile)[:-4]
@@ -71,9 +72,9 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
     fileCon = str(confile)
     fileINL = str(inlfile)
 
-    address = os.getcwd()
+    #address = os.getcwd()
     cur_dir = os.getcwd()
-    scopfaddress = os.getcwd() + '\\' + testcasecur + '_scopf' # this is the output data folder
+    scopfaddress = address + testcasecur + '_scopf' # this is the output data folder
 
     if not os.path.isdir(scopfaddress):
         os.makedirs(scopfaddress)
@@ -133,7 +134,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
     psspy.psseinit(1000000)
 
     #psspy.case(case) #this is for sav file
-    psspy.read(0,case+'.raw') #this is for raw file
+    psspy.read(0,address+case+'.raw') #this is for raw file
     psspy.fnsl([0,0,0,1,1,0,0,0])
 
 
@@ -258,20 +259,21 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
         genbusdicttmp.update({genbuskeytmp: geninfotmp[igentmp]})
         # Set Mbase to 100 for all machines
         ierr = psspy.machine_chng_2(vgenbusnotmp[igentmp], vgenidtmp[igentmp],  realar7 = 100.0)
-                
-    #shutil.copyfile (fileINL, fileINL[:-4]+'_org.inl') #first keep a copy of the original inl file
-    fileINLorg = fileINL[:-4]+'_org.inl'
 
-    if os.path.exists(fileINLorg):
-        os.remove (fileINLorg)
-        os.rename (fileINL, fileINLorg)
-    else:
-        os.rename (fileINL, fileINLorg)
+    # We will just a store copy of the modified INL file in each subfolder (for multiprocessing)      
+    #shutil.copyfile (fileINL, fileINL[:-4]+'_org.inl') #first keep a copy of the original inl file
+    #fileINLorg = fileINL[:-4]+'_org.inl'
+
+    if os.path.exists(address+fileINL):
+        os.remove (address+fileINL)
+        #os.rename (fileINL, fileINLorg)
+    #else:
+    #    os.rename (fileINL, fileINLorg)
     
-    finlorg = open (fileINLorg)
+    finlorg = open (fileINL)
     inllines = finlorg.readlines()
-    
-    finldst = open(fileINL, 'w')
+
+    finldst = open(address+fileINL, 'w')
 
     for oneline in inllines:
         if oneline.split()[0] == '0':
@@ -380,6 +382,10 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
     vbasecasegenp = rarray[0] # this array has all the generator's Active power output P, MW
     ierr, rarray = psspy.amachreal(-1, 4, 'QGEN')
     vbasecasegenq = rarray[0] # this array has all the generator's Reactive power output Q, MVar
+    # getting the machines bus voltages
+    ierr = psspy.bsys(11, 0, [0.2,999.0], 0, [], len(vbasecasegenbusno), vbasecasegenbusno,0, [], 0, [])
+    ierr, rarray = psspy. abusreal(11, 1, 'PU')
+    vbasecasegenbusvpu = rarray[0]
     
     ierr, iarray = psspy.abusint(-1, 1, 'NUMBER')
     vbasebusno = iarray[0]   # this array has all the bus number
@@ -451,6 +457,14 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
     sheet_bf = workbook_accc.sheet_by_name('Contingency Events')
     
     cases_delta_dict = {}
+
+    # remove exising solution files
+    solutin1file = address + '\\' +case  + '_solution1.txt'
+    if os.path.exists(solutin1file):
+        os.remove (solutin1file)
+    solutin2file = address + '\\' +case + '_solution2.txt'
+    if os.path.exists(solutin2file):
+        os.remove (solutin2file)    
     
     for isvfile in isvfiles:
         #print isvfile
@@ -493,11 +507,16 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
         ierr, rarray = psspy.amachreal(-1, 4, ['QGEN','QMAX','QMIN'])
         vgenq = map(lambda (a,b):a*b,zip(vgenstatus,rarray[0] )) # this array has all the generator's Reactive power output Q, MVar
         vgenqmax = map(lambda (a,b):a*b,zip(vgenstatus,rarray[1] )) 
-        vgenqmin = map(lambda (a,b):a*b,zip(vgenstatus,rarray[2] )) 
+        vgenqmin = map(lambda (a,b):a*b,zip(vgenstatus,rarray[2] ))
+        # getting the machines bus voltages
+        ierr = psspy.bsys(11, 0, [0.2,999.0], 0, [], len(vgenbusno), vgenbusno,0, [], 0, [])
+        ierr, rarray = psspy. abusreal(11, 2, 'PU')
+        vgenbusvpu = rarray[0]
+        ierr, rarray = psspy. abusint(11, 2, 'NUMBER')
+        vgenbusnounique = rarray[0]
         # switched shunts section
         ierr, iarray = psspy.aswshint(-1, 4, 'NUMBER')
         swshuntbusno = iarray[0] # this array has all the switched shunts bus number
-    
         ierr, iarray = psspy.aswshint(-1, 4, 'STATUS')
         swshuntstatus = iarray[0] # this array has all the switched shunts status
     
@@ -623,14 +642,19 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
             vgenid = carray[0] # this array has all the generator's ID, string
             ierr, rarray = psspy.amachreal(-1, 4, 'PGEN')
             vgenp = map(lambda (a,b):a*b,zip(vgenstatus,rarray[0] ))    # this array has all the generator's Active power output P, MW
-            ierr, rarray = psspy.amachreal(-1, 4, ['QGEN','QMAX','QMIN'])
+            ierr, rarray = psspy.amachreal(-1, 4, 'QGEN')
             vgenq = map(lambda (a,b):a*b,zip(vgenstatus,rarray[0] )) # this array has all the generator's Reactive power output Q, MVar
             ierr, iarray = psspy.amachint(-1, 4, 'TYPE')
             vgenbustype = iarray[0] # this array has all the generator's bus number, including both in-service and out-service
+            # getting the machines bus voltages
+            ierr = psspy.bsys(11, 0, [0.2,999.0], 0, [], len(vgenbusno), vgenbusno,0, [], 0, [])
+            ierr, rarray = psspy.abusreal(11, 2, 'PU')
+            vgenbusvpu = rarray[0]
+            ierr, rarray = psspy. abusint(11, 2, 'NUMBER')
+            vgenbusnounique = rarray[0]
             # switched shunts section
             ierr, iarray = psspy.aswshint(-1, 4, 'NUMBER')
             swshuntbusno = iarray[0] # this array has all the switched shunts bus number
-        
             ierr, iarray = psspy.aswshint(-1, 4, 'STATUS')
             swshuntstatus = iarray[0] # this array has all the switched shunts status
         
@@ -728,18 +752,42 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
         # impose Pmin, Pmax, Qmin, Qmax on data extracted
         if 1:
             for igentmp in range(0,len(vgenid)):
-                if vgenq[igentmp] > round(1000*vgenqmax[igentmp])/1000:
-                    vgenq[igentmp] = round(1000*vgenqmax[igentmp])/1000
-                if vgenq[igentmp] < round(1000*vgenqmin[igentmp])/1000:
-                    vgenq[igentmp] = round(1000*vgenqmin[igentmp])/1000
-                if vgenp[igentmp] > round(1000*vgenpmax[igentmp])/1000:
-                    vgenp[igentmp] = round(1000*vgenpmax[igentmp])/1000
-                if vgenp[igentmp] < round(1000*vgenpmin[igentmp])/1000:
-                    vgenp[igentmp] = round(1000*vgenpmin[igentmp])/1000
+                if vgenq[igentmp] > round(10000*vgenqmax[igentmp])/10000:
+                    vgenq[igentmp] = round(10000*vgenqmax[igentmp])/10000
+                if vgenq[igentmp] < round(10000*vgenqmin[igentmp])/10000:
+                    vgenq[igentmp] = round(10000*vgenqmin[igentmp])/10000
+                if vgenp[igentmp] > round(10000*vgenpmax[igentmp])/10000:
+                    vgenp[igentmp] = round(10000*vgenpmax[igentmp])/10000
+                if vgenp[igentmp] < round(10000*vgenpmin[igentmp])/10000:
+                    vgenp[igentmp] = round(10000*vgenpmin[igentmp])/10000
         if 1:
             for ibustmp in range(0,len(vbusno)):
-                vbusmag[ibustmp] = round(100000*vbusmag[ibustmp])/100000
-                
+                vbusmag[ibustmp] = round(1000000*vbusmag[ibustmp])/1000000
+
+        if 0:
+            for k in range(0,len(vgenbusvpu)):
+                #if vgenbusvpu[k]==vbasecasegenbusvpu[k]:
+                #    print " do nothing"
+                if vgenbusvpu[k]<vbasecasegenbusvpu[k]:
+                    if vbasecasegenbusvpu[k]-vgenbusvpu[k]>vgenqmax[k]-vgenq[k]:
+                        vgenq[k]=vgenqmax[k]
+                        #vgenbusvpu[k] is same
+                    else:
+                        vgenbusvpu[k] = vbasecasegenbusvpu[k]
+                        # vgenq[k] is same
+                if vgenbusvpu[k]>vbasecasegenbusvpu[k]:
+                    if vgenbusvpu[k]-vbasecasegenbusvpu[k]>vgenq[k]-vgenqmin[k]:
+                        vgenq[k] = vgenqmin[k]
+                        # vgenbusvpu[k] is same
+                    else:
+                        vgenbusvpu[k] = vbasecasegenbusvpu[k]
+                        #vgenq[k] is same
+
+        if 1: # updating the bus voltages based on the generators bus voltages
+            for k in range(0,len(vgenbusnounique)):
+                vbusindx = vbusno.index(vgenbusnounique[k])
+                #print vbustmp
+                vbusmag[vbusindx] = vgenbusvpu[k]
 
         if cont == 'InitCase':
             vbusno_basecse      = vbusno
@@ -787,13 +835,14 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile):
     csv_scopf_obj.close()  
     workbookscopf.close()   
 
-    if os.path.exists(fileINL[:-4]+'_mod.inl'):
-        os.remove (fileINL[:-4]+'_mod.inl')
-        os.rename (fileINL, fileINL[:-4]+'_mod.inl')
-    else:
-        os.rename (fileINL, fileINL[:-4]+'_mod.inl')
-        
-    os.rename (fileINLorg, fileINL)
+    if 0: # no need for this since we are saving a separate copy in each subfolder
+        if os.path.exists(fileINL[:-4]+'_mod.inl'):
+            os.remove (fileINL[:-4]+'_mod.inl')
+            os.rename (fileINL, fileINL[:-4]+'_mod.inl')
+        else:
+            os.rename (fileINL, fileINL[:-4]+'_mod.inl')
+            
+        os.rename (fileINLorg, fileINL)
 
     for casetmp in cases_delta_dict.keys():
         print(casetmp  + '  delta:  ' + str(cases_delta_dict[casetmp]))
