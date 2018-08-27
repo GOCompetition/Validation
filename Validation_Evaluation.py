@@ -68,8 +68,8 @@ def run_validation_evaluation(address,files):
         GOValid_func(rawfile,confile,inlfile,monfile,subfile,address)
     print ("finished validating " + address+files)
     ropfile = 'case.rop'
-    sol1file = address+'case_scopf_accc_solution1.txt'
-    sol2file = address+'case_scopf_accc_solution2.txt'
+    sol1file = address+files[:-4]+'_scopf_accc_solution1.txt'
+    sol2file = address+files[:-4]+'_scopf_accc_solution2.txt'
     summaryfile = address+'summary.csv'
     detailfile = address+'detail.csv'
     #sys.argv = ['python',rawfile, ropfile, confile, inlfile, sol1file, sol2file, summaryfile, detailfile]
