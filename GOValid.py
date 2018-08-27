@@ -151,7 +151,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     if 0:
         print ('------------------ Change all switched shunts to continuous control mode ---------')
         ierr, iarray = psspy.aswshint(-1, 4, 'NUMBER')
-        ShuntBus = iarray[0]    
+        ShuntBus = iarray[0]
         for ishunt in range(0,len(ShuntBus)):
             ierr, Vpu = psspy.busdat(ShuntBus[ishunt] ,'PU')
             ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar9=2, realar9=Vpu, realar10=Vpu)
@@ -280,7 +280,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         
         partxt = oneline.split(',')
         igenbustmp = int(partxt[0])
-        igenidtmp = str(eval(partxt[1]).strip())
+        igenidtmp = str(partxt[1].strip())
         genbuskeytmp = str(igenbustmp)+'-'+igenidtmp
         if genbuskeytmp in genbusdicttmp.keys():
             # Storing the generators droop for delta calculation
@@ -301,6 +301,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     
     finldst.write(str(0) )
     finldst.close()
+    fileINL = address+fileINL
     
     print ('------------------finish checking Pmax Pmin in inl file -------------------')
     
@@ -382,9 +383,9 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     ierr, rarray = psspy.amachreal(-1, 4, 'QGEN')
     vbasecasegenq = rarray[0] # this array has all the generator's Reactive power output Q, MVar
     # getting the machines bus voltages
-    ierr = psspy.bsys(11, 0, [0.2,999.0], 0, [], len(vbasecasegenbusno), vbasecasegenbusno,0, [], 0, [])
-    ierr, rarray = psspy. abusreal(11, 1, 'PU')
-    vbasecasegenbusvpu = rarray[0]
+    #ierr = psspy.bsys(11, 0, [0.2,999.0], 0, [], len(vbasecasegenbusno), vbasecasegenbusno,0, [], 0, [])
+    #ierr, rarray = psspy. abusreal(11, 1, 'PU')
+    #vbasecasegenbusvpu = rarray[0]
     
     ierr, iarray = psspy.abusint(-1, 1, 'NUMBER')
     vbasebusno = iarray[0]   # this array has all the bus number
@@ -392,7 +393,11 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     vbasebustype = iarray[0]   # this array has all the bus number
     
     swingbus = []
+    basebusvpu_dict = {}
     for ibustmp in range(0, len(vbasebusno)):
+        if vbasebusno[ibustmp] not in basebusvpu_dict.keys(): 
+            ierr, vpu = psspy.busdat(vbasebusno[ibustmp],'PU')
+            basebusvpu_dict.update({vbasebusno[ibustmp]:vpu})
         if vbasebustype[ibustmp] == 3:
             swingbus.append(vbasebusno[ibustmp])
     
@@ -508,11 +513,11 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         vgenqmax = map(lambda (a,b):a*b,zip(vgenstatus,rarray[1] )) 
         vgenqmin = map(lambda (a,b):a*b,zip(vgenstatus,rarray[2] ))
         # getting the machines bus voltages
-        ierr = psspy.bsys(11, 0, [0.2,999.0], 0, [], len(vgenbusno), vgenbusno,0, [], 0, [])
-        ierr, rarray = psspy. abusreal(11, 2, 'PU')
-        vgenbusvpu = rarray[0]
-        ierr, rarray = psspy. abusint(11, 2, 'NUMBER')
-        vgenbusnounique = rarray[0]
+        #ierr = psspy.bsys(11, 0, [0.2,999.0], 0, [], len(vgenbusno), vgenbusno,0, [], 0, [])
+        #ierr, rarray = psspy. abusreal(11, 2, 'PU')
+        #vgenbusvpu = rarray[0]
+        #ierr, rarray = psspy. abusint(11, 2, 'NUMBER')
+        #vgenbusnounique = rarray[0]
         # switched shunts section
         ierr, iarray = psspy.aswshint(-1, 4, 'NUMBER')
         swshuntbusno = iarray[0] # this array has all the switched shunts bus number
@@ -646,11 +651,11 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             ierr, iarray = psspy.amachint(-1, 4, 'TYPE')
             vgenbustype = iarray[0] # this array has all the generator's bus number, including both in-service and out-service
             # getting the machines bus voltages
-            ierr = psspy.bsys(11, 0, [0.2,999.0], 0, [], len(vgenbusno), vgenbusno,0, [], 0, [])
-            ierr, rarray = psspy.abusreal(11, 2, 'PU')
-            vgenbusvpu = rarray[0]
-            ierr, rarray = psspy. abusint(11, 2, 'NUMBER')
-            vgenbusnounique = rarray[0]
+            #ierr = psspy.bsys(11, 0, [0.2,999.0], 0, [], len(vgenbusno), vgenbusno,0, [], 0, [])
+            #ierr, rarray = psspy.abusreal(11, 2, 'PU')
+            #vgenbusvpu = rarray[0]
+            #ierr, rarray = psspy. abusint(11, 2, 'NUMBER')
+            #vgenbusnounique = rarray[0]
             # switched shunts section
             ierr, iarray = psspy.aswshint(-1, 4, 'NUMBER')
             swshuntbusno = iarray[0] # this array has all the switched shunts bus number
@@ -751,42 +756,53 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         # impose Pmin, Pmax, Qmin, Qmax on data extracted
         if 1:
             for igentmp in range(0,len(vgenid)):
-                if vgenq[igentmp] > round(10000*vgenqmax[igentmp])/10000:
-                    vgenq[igentmp] = round(10000*vgenqmax[igentmp])/10000
-                if vgenq[igentmp] < round(10000*vgenqmin[igentmp])/10000:
-                    vgenq[igentmp] = round(10000*vgenqmin[igentmp])/10000
-                if vgenp[igentmp] > round(10000*vgenpmax[igentmp])/10000:
-                    vgenp[igentmp] = round(10000*vgenpmax[igentmp])/10000
-                if vgenp[igentmp] < round(10000*vgenpmin[igentmp])/10000:
-                    vgenp[igentmp] = round(10000*vgenpmin[igentmp])/10000
-        if 1:
-            for ibustmp in range(0,len(vbusno)):
-                vbusmag[ibustmp] = round(1000000*vbusmag[ibustmp])/1000000
+                vgenqmax[igentmp] = round(10000*vgenqmax[igentmp])/10000
+                vgenqmin[igentmp] = round(10000*vgenqmin[igentmp])/10000
+                vgenpmax[igentmp] = round(10000*vgenpmax[igentmp])/10000
+                vgenpmin[igentmp] = round(10000*vgenpmin[igentmp])/10000
+                
+                if vgenq[igentmp] > vgenqmax[igentmp]:
+                    vgenq[igentmp] = vgenqmax[igentmp]
+                if vgenq[igentmp] < vgenqmin[igentmp]:
+                    vgenq[igentmp] = vgenqmin[igentmp]
+                if vgenp[igentmp] > vgenpmax[igentmp]:
+                    vgenp[igentmp] = vgenpmax[igentmp]
+                if vgenp[igentmp] < vgenpmin[igentmp]:
+                    vgenp[igentmp] = vgenpmin[igentmp]
+
 
         if 0:
-            for k in range(0,len(vgenbusvpu)):
-                #if vgenbusvpu[k]==vbasecasegenbusvpu[k]:
-                #    print " do nothing"
-                if vgenbusvpu[k]<vbasecasegenbusvpu[k]:
-                    if vbasecasegenbusvpu[k]-vgenbusvpu[k]>vgenqmax[k]-vgenq[k]:
+            for ibustmp in range(0,len(vbusno)):
+                vbusmag[ibustmp] = round(1000000*vbusmag[ibustmp])/1000000
+        
+        if 1:
+            for k in range(0,len(vgenbusno)):
+                ierr, genvpu = psspy.busdat(vgenbusno[k],'PU')
+                basegenvpu = basebusvpu_dict[vgenbusno[k]]
+                if genvpu<basegenvpu:
+                    if (basegenvpu-genvpu)>(vgenqmax[k]-vgenq[k])/100:
                         vgenq[k]=vgenqmax[k]
                         #vgenbusvpu[k] is same
                     else:
-                        vgenbusvpu[k] = vbasecasegenbusvpu[k]
+                        vbusindx = vbusno.index(vgenbusno[k])
+                        vbusmag[vbusindx] = basegenvpu
+                        #vgenbusvpu[k] = vbasecasegenbusvpu[k]
                         # vgenq[k] is same
-                if vgenbusvpu[k]>vbasecasegenbusvpu[k]:
-                    if vgenbusvpu[k]-vbasecasegenbusvpu[k]>vgenq[k]-vgenqmin[k]:
+                if genvpu>basegenvpu:
+                    if (genvpu-basegenvpu)>(vgenq[k]-vgenqmin[k])/100:
                         vgenq[k] = vgenqmin[k]
                         # vgenbusvpu[k] is same
                     else:
-                        vgenbusvpu[k] = vbasecasegenbusvpu[k]
+                        vbusindx = vbusno.index(vgenbusno[k])
+                        vbusmag[vbusindx] = basegenvpu
+                        #vgenbusvpu[k] = vbasecasegenbusvpu[k]
                         #vgenq[k] is same
 
-        if 1: # updating the bus voltages based on the generators bus voltages
-            for k in range(0,len(vgenbusnounique)):
-                vbusindx = vbusno.index(vgenbusnounique[k])
-                #print vbustmp
-                vbusmag[vbusindx] = vgenbusvpu[k]
+            # updating the bus voltages based on the generators bus voltages
+            #for k in range(0,len(vgenbusnounique)):
+            #    vbusindx = vbusno.index(vgenbusnounique[k])
+            #    #print vbustmp
+            #    vbusmag[vbusindx] = vgenbusvpu[k]
 
         if cont == 'InitCase':
             vbusno_basecse      = vbusno

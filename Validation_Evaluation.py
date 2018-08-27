@@ -116,13 +116,15 @@ def main():
             if '.raw' in files:
                 #print 'Identified .raw file: ', files
                 used_raw_files.append(files)
-                # For single processing
-                run_validation_evaluation(Location,files)
-                # For multiprocessing
-                #arguments = [Location,files]
-                #p = multiprocessing.Process(target = run_validation_evaluation, args = arguments) # check MAP function
-                #p.start()
-                #procs.append(p)
+                if 1:
+                    # For single processing
+                    run_validation_evaluation(Location,files)
+                else:
+                    # For multiprocessing
+                    arguments = [Location,files]
+                    p = multiprocessing.Process(target = run_validation_evaluation, args = arguments) # check MAP function
+                    p.start()
+                    procs.append(p)
         print "********************************************************"
 
 if __name__ == "__main__":
