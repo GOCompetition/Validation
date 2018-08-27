@@ -148,11 +148,10 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             
         print ('------------------ finished change remote bus for all generators to self (0) ---------')
 
-    print ('------------------ Change all switched shunts to continuous control mode ---------')
-    ierr, iarray = psspy.aswshint(-1, 4, 'NUMBER')
-    ShuntBus = iarray[0]
-
-    if 1:
+    if 0:
+        print ('------------------ Change all switched shunts to continuous control mode ---------')
+        ierr, iarray = psspy.aswshint(-1, 4, 'NUMBER')
+        ShuntBus = iarray[0]    
         for ishunt in range(0,len(ShuntBus)):
             ierr, Vpu = psspy.busdat(ShuntBus[ishunt] ,'PU')
             ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar9=2, realar9=Vpu, realar10=Vpu)
@@ -281,7 +280,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         
         partxt = oneline.split(',')
         igenbustmp = int(partxt[0])
-        igenidtmp = str(partxt[1].strip())
+        igenidtmp = str(eval(partxt[1]).strip())
         genbuskeytmp = str(igenbustmp)+'-'+igenidtmp
         if genbuskeytmp in genbusdicttmp.keys():
             # Storing the generators droop for delta calculation

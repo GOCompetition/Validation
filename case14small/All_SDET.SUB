@@ -1,8 +1,0 @@
-COM
-COM SUBSYSTEM description file entry created by PSS®E Config File Builder
-COM
-SUBSYSTEM 'ALL'
-	KVRANGE 1.000 500.000
-
-END
-END
