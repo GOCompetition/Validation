@@ -371,7 +371,14 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     
     print ('------------------finish SCOPF for case:' + case + '  ------------------')
     
-    #---------------------form the base case gen dictionary-------------------------------
+	
+    # run ACCC for the new case from SCOPF
+    psspy.case(savecase)
+    #psspy.read(0,case)
+    psspy.fnsl([0,0,0,1,1,0,0,0])
+    #psspy.rawd_2(0,1,[1,1,1,0,0,0,0],0, address + '\\' + caseX +'.raw')
+    
+	#---------------------form the base case gen dictionary-------------------------------
     ierr, iarray = psspy.amachint(-1, 4, 'NUMBER')
     vbasecasegenbusno = iarray[0] # this array has all the generator's bus number, including both in-service and out-service
     ierr, iarray = psspy.amachint(-1, 4, 'STATUS')
@@ -417,12 +424,6 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     
     #---------------------form the base case gen dictionary finished here-------------------------------
     
-    # run ACCC for the new case from SCOPF
-    psspy.case(savecase)
-    #psspy.read(0,case)
-    psspy.fnsl([0,0,0,1,1,0,0,0])
-    #psspy.rawd_2(0,1,[1,1,1,0,0,0,0],0, address + '\\' + caseX +'.raw')
-    
     # creat sub-folder to store all the ACCC results
     case = case + '_scopf_accc'
     if not os.path.isdir(scopfaddress + '\\' + case ):
@@ -449,10 +450,11 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     #pywin.debugger.set_trace()
     archive = zipfile.ZipFile(Zip, 'r')
     ziplist = archive.namelist()
-    isvfiles = []
+    isvfiles = ['InitCase'] # making sure InitCase is in the beginning 
     for file in ziplist:
         if '.isv' in file:
-            isvfiles.append(file[:-4])
+			if not file == 'InitCase.isv':
+				isvfiles.append(file[:-4])
         if '.sav' in file:
             savefile = file
     #pywin.debugger.set_trace()
@@ -482,11 +484,11 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             # remove cont contingency in the cont_con_array, to check at the end whether all the contingencies are processed
             if cont in cont_con_array:
                 cont_con_array.remove(cont)
-                
+            ierr = psspy.getcontingencysavedcase(Zip, isvfile)
         else:
             cont = 'InitCase'
-        ierr = psspy.getcontingencysavedcase(Zip, isvfile)  
-        
+			#ierr = psspy.getcontingencysavedcase(Zip, isvfile)  
+        #psspy.fnsl([0,0,0,1,1,0,0,0])
         # extract data for solution 1 and solution 2
         # bus section
         ierr, iarray = psspy.abusint(-1, 1, 'NUMBER')
@@ -775,7 +777,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             for ibustmp in range(0,len(vbusno)):
                 vbusmag[ibustmp] = round(1000000*vbusmag[ibustmp])/1000000
         
-        if 1:
+        if cont!='InitCase':
             for k in range(0,len(vgenbusno)):
                 ierr, genvpu = psspy.busdat(vgenbusno[k],'PU')
                 basegenvpu = basebusvpu_dict[vgenbusno[k]]
