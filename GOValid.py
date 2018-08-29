@@ -494,11 +494,15 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         ierr, iarray = psspy.abusint(-1, 1, 'NUMBER')
         vbusno = iarray[0]   # this array has all the bus number
         print "type:", type(vbusno)
-        ierr, rarray = psspy. abusreal(-1, 1, 'PU')  
+        ierr, rarray = psspy. abusreal(-1, 1, ['PU','NVLMHI','NVLMLO','EVLMHI','EVLMLO'])  
         vbusmag = rarray[0]  # this array has all the bus voltage magnitude
+        vbusmagmax = rarray[1]
+        vbusmagmin = rarray[2]
+        vbusmagmaxcont = rarray[3]
+        vbusmagmincont = rarray[4]
         ierr, rarray = psspy. abusreal(-1, 1, 'ANGLED')  
         vbusangle = rarray[0]      # this array has all the bus voltage angle, in ardians
-        
+
         # generator section
         ierr, iarray = psspy.amachint(-1, 4, 'NUMBER')
         vgenbusno = iarray[0] # this array has all the generator's bus number, including both in-service and out-service
@@ -773,9 +777,21 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     vgenp[igentmp] = vgenpmin[igentmp]
 
 
-        if 0:
+        if 1:
             for ibustmp in range(0,len(vbusno)):
-                vbusmag[ibustmp] = round(1000000*vbusmag[ibustmp])/1000000
+                if cont=='InitCase':
+                    vbusmagmaxtmp = int(100000*vbusmagmax[ibustmp])/100000.0
+                    vbusmagmintmp = int(100000*vbusmagmin[ibustmp])/100000.0
+                else:
+                    vbusmagmaxtmp = int(100000*vbusmagmaxcont[ibustmp])/100000.0
+                    vbusmagmintmp = int(100000*vbusmagmincont[ibustmp])/100000.0
+                if cont=='LINE-105-180-1':
+                    print vbusmagmaxtmp, vbusmagmintmp
+                if vbusmag[ibustmp] > vbusmagmaxtmp:
+                    vbusmag[ibustmp] = vbusmagmaxtmp
+                if vbusmag[ibustmp] < vbusmagmintmp:
+                    vbusmag[ibustmp] = vbusmagmintmp
+            #round(1000000*vbusmag[ibustmp])/1000000
         
         if cont!='InitCase':
             for k in range(0,len(vgenbusno)):
