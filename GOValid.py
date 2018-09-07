@@ -501,7 +501,6 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             if  gen_tmp_sorted[igen][0] not in swingbus_new:
                 secondswingbus = gen_tmp_sorted[igen][0]
                 ACCClist.append(secondswingbus)
-                print "lol"
                 break
         print gen_tmp_sorted
         print secondswingbus, swingbus_new
@@ -631,6 +630,8 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     cont_con_array.remove(cont)
                 ierr = psspy.getcontingencysavedcase(Zip, isvfile)
             else:
+                if icon>0:
+                    continue
                 cont = 'InitCase'
                 #ierr = psspy.getcontingencysavedcase(Zip, isvfile)  
             #psspy.fnsl([0,0,0,1,1,0,0,0])
@@ -783,7 +784,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     totalgendeltacount = totalgendeltacount + 1
 
                 totalgendeltamean =  totalgendelta/totalgendeltacount
-                totalgendeltamedian = numpy.median(totalgendelta_list)
+                #totalgendeltamedian = numpy.median(totalgendelta_list)
 
                 # calculate delta error
                 deltaerror = 0.0
@@ -793,7 +794,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     genptmp = vgenp[igentmp] * vgenstatus[igentmp]
                     
                     if vgenstatus[igentmp]==1 and not (vgenp[igentmp]==vgenpmax[igentmp] or vgenp[igentmp]==vgenpmin[igentmp]):
-                        genmismatch = gendroop[genbuskeytmp]*totalgendeltamedian - (genptmp - basegenp)
+                        genmismatch = gendroop[genbuskeytmp]*totalgendeltamean - (genptmp - basegenp)
                         deltaerror = deltaerror + abs(genmismatch)
                         #print genbuskeytmp,genptmp,gendroop[genbuskeytmp]*totalgendeltamean+basegenp,genmismatch,deltaerror
                 #print deltaerror
@@ -801,7 +802,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     break
       
             #totalgendelta is the delta value for the case    
-            #cases_delta_dict.update ({cont:totalgendeltamean})  
+            #cases_delta_dict.update ({cont:totalgendeltamedian})  
             cases_delta_dict.update ({cont:totalgendeltamean})  
             # impose Pmin, Pmax, Qmin, Qmax on data extracted
             if 1:
