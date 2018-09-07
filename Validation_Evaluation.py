@@ -68,14 +68,16 @@ def run_validation_evaluation(address,files):
         GOValid_func(rawfile,confile,inlfile,monfile,subfile,address)
     print ("finished validating " + address+files)
     ropfile = 'case.rop'
+    inlfile = address + 'case.inl'
     sol1file = address+files[:-4]+'_scopf_accc_solution1.txt'
     sol2file = address+files[:-4]+'_scopf_accc_solution2.txt'
     summaryfile = address+'summary.csv'
     detailfile = address+'detail.csv'
     #sys.argv = ['python',rawfile, ropfile, confile, inlfile, sol1file, sol2file, summaryfile, detailfile]
     with silence():
-        evaluation.run(address+rawfile, ropfile, confile, inlfile, sol1file, sol2file, summaryfile, detailfile)
+        result1,result2,result3,result4,result5,result6 = evaluation.run(address+rawfile, ropfile, confile, inlfile, sol1file, sol2file, summaryfile, detailfile)
     print ("finished evaluating " + address+files)
+    return str(result1)+','+str(result2)+','+str(result3)+','+str(result4)+','+str(result5)+','+str(result6)+','+str(100*(1-result2/result1))
 
 # Main body
 def main():
@@ -101,6 +103,8 @@ def main():
             #print "Identified folder: ", Counter
 
     procs = []
+    rslt = open('results.csv','w')
+    rslt.write('file,obj,cost,penalty,max_obj_viol,max_nonobj_viol,infeas,100(1-cost/obj)'+'\n')                    
     for Counter in Folders:
         all_files = []
         used_raw_files = []
@@ -118,7 +122,8 @@ def main():
                 used_raw_files.append(files)
                 if 1:
                     # For single processing
-                    run_validation_evaluation(Location,files)
+                    result = run_validation_evaluation(Location,files)
+                    rslt.write(Location+files+','+str(result)+'\n')
                 else:
                     # For multiprocessing
                     arguments = [Location,files]
@@ -126,6 +131,6 @@ def main():
                     p.start()
                     procs.append(p)
         print "********************************************************"
-
+    rslt.close()
 if __name__ == "__main__":
     main()
