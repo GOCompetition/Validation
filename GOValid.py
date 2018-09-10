@@ -21,7 +21,9 @@
 # 0904 - putting a loop on the dispatch correction
 #       - does not use INLF anymore
 # 0905 - Include check for ratings (A and C)
-#       - makes a separate run for slack gen cont  
+#       - makes a separate run for slack gen cont
+#       - uses mean instead of median
+# 0910  - Convert contingency label to upper case before matching
 import sys, os, csv
 
 PSSE_LOCATION = r"C:\Program Files (x86)\PTI\PSSE33\PSSBIN"
@@ -327,7 +329,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         #print partxt
         
         if partxt[0] == 'CONTINGENCY':
-            cont_tag = partxt[1]
+            cont_tag = partxt[1]#.upper()
             cont_con_array.append(cont_tag)
             
         if (partxt[0] == 'REMOVE' and partxt[1] == 'UNIT') or (partxt[0] == 'REMOVE' and partxt[1] == 'MACHINE'):  
@@ -626,8 +628,15 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                 cont = sheet_bf.cell_value(row,0)
                 
                 # remove cont contingency in the cont_con_array, to check at the end whether all the contingencies are processed
+                '''
                 if cont in cont_con_array:
                     cont_con_array.remove(cont)
+                '''
+                for contlabel in cont_con_array:
+                    if contlabel.upper()==cont:
+                        cont_con_array.remove(contlabel)
+                        cont = contlabel
+                        break
                 ierr = psspy.getcontingencysavedcase(Zip, isvfile)
             else:
                 if icon>0:
