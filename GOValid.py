@@ -24,6 +24,8 @@
 #       - makes a separate run for slack gen cont
 #       - uses mean instead of median
 # 0910  - Convert contingency label to upper case before matching
+# 0911  - Increase NR iterations
+#       - increase number of shunt blocks
 import sys, os, csv
 
 PSSE_LOCATION = r"C:\Program Files (x86)\PTI\PSSE33\PSSBIN"
@@ -151,7 +153,8 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         # Temporarily change swing bus to machine 9 (TAMU500)
         psspy.bus_chng_3(9,intgar1 = 3)
         psspy.bus_chng_3(17,intgar1 = 2)
-    
+        
+    psspy.solution_parameters_4(intgar2 = 40)
     psspy.fnsl([0,0,0,1,1,0,0,0])
     
     # Check if case has nonzero ratings
@@ -198,7 +201,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             #ierr, vswlo = psspy.swsdt1(ShuntBus[ishunt],'VSWLO')
             #ierr, Vpu = psspy.busdat(ShuntBus[ishunt] ,'PU')
             if swsteps<5:
-                ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar1=9,realar1=swsteps*swb/9.0)
+                ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar1=9,intgar2=9,intgar3=9,realar1=swsteps*swb/27.0,realar2=swsteps*swb/27.0,realar3=swsteps*swb/27.0)
             
             if vswhi==vswlo:
                 ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar9=1, realar9=vswhi+0.01, realar10=vswlo-0.01)
@@ -484,7 +487,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     print ('------------------finish SCOPF for case:' + case + '  ------------------')
 
     if newswingbus==-1: #We couldn't find a gen bus that is not in the cont list
-        # determin the second generator to choose as slack based on SCOPF solution
+        # determine the second generator to choose as slack based on SCOPF solution
         #sort in-service generators
         ierr, iarray = psspy.amachint(-1, 1, 'NUMBER')
         vtmpgenbusno = iarray[0]
