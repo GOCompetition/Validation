@@ -909,7 +909,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             
             # save each post-contingency case in both raw and sav format
             #psspy.save(scopfaddress + '\\' + case +'\\'+case +"_" + str(cont)+'.sav')
-            psspy.rawd_2(0,1,[1,1,1,0,0,0,0],0,scopfaddress + '\\' + case + '\\' + case +"_" + str(cont)+'.raw')
+            #psspy.rawd_2(0,1,[1,1,1,0,0,0,0],0,scopfaddress + '\\' + case + '\\' + case +"_" + str(cont)+'.raw')
     
     # if cont_con_array is not empty, which means ACCC ignores some contingencies, 
     # output solution1 as solution2 for these contingencies 
