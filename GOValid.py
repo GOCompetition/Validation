@@ -500,7 +500,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                 break
                 
         if newswingbus2 != -1:
-            print ('!!!!!!!!!!!--------new swing bus find, is bus: ' + str(newswingbus) + '   ----------------!!!!!')   
+            print ('!!!!!!!!!!!--------new swing bus find, is bus: ' + str(newswingbus2) + '   ----------------!!!!!')   
             
             # change swing bus:
             psspy.bus_chng_3(newswingbus2,[3,_i,_i,_i],[_f,_f,_f,_f,_f,_f,_f],_s)  # change swing to type 3   
