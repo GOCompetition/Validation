@@ -995,21 +995,6 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     if vgenp[igentmp] < vgenpmin[igentmp]:
                         vgenp[igentmp] = vgenpmin[igentmp]
 
-                for ibustmp in range(0,len(vbusno)):
-                    if cont=='InitCase':
-                        vbusmagmaxtmp = round(1000*vbusmagmax[ibustmp])/1000.0
-                        vbusmagmintmp = round(1000*vbusmagmin[ibustmp])/1000.0
-                    else:
-                        vbusmagmaxtmp = round(1000*vbusmagmaxcont[ibustmp])/1000.0
-                        vbusmagmintmp = round(1000*vbusmagmincont[ibustmp])/1000.0
-                    #if cont=='LINE-105-180-1':
-                    #    print vbusmagmaxtmp, vbusmagmintmp
-                    if vbusmag[ibustmp] > vbusmagmaxtmp:
-                        vbusmag[ibustmp] = vbusmagmaxtmp
-                    if vbusmag[ibustmp] < vbusmagmintmp:
-                        vbusmag[ibustmp] = vbusmagmintmp
-                #round(1000000*vbusmag[ibustmp])/1000000
-
                 if cont!='InitCase':
                     for k in range(0,len(vgenbusno)):
                         ierr, genvpu = psspy.busdat(vgenbusno[k],'PU')
@@ -1032,6 +1017,26 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                                 vbusmag[vbusindx] = basegenvpu
                                 #vgenbusvpu[k] = vbasecasegenbusvpu[k]
                                 #vgenq[k] is same
+
+                for ibustmp in range(0,len(vbusno)):
+                    if cont=='InitCase':
+                        vbusmagmaxtmp = round(1000*vbusmagmax[ibustmp])/1000.0
+                        vbusmagmintmp = round(1000*vbusmagmin[ibustmp])/1000.0
+                    else:
+                        #print vbusmag[ibustmp],vbusmagmaxtmp,vbusmagmintmp
+                        vbusmagmaxtmp = round(1000*vbusmagmaxcont[ibustmp])/1000.0
+                        vbusmagmintmp = round(1000*vbusmagmincont[ibustmp])/1000.0
+                        #if vgenbusno[ibustmp]==166:
+                        #    sys.exit()
+                    #if cont=='LINE-105-180-1':
+                    #    print vbusmagmaxtmp, vbusmagmintmp
+                    if vbusmag[ibustmp] > vbusmagmaxtmp:
+                        vbusmag[ibustmp] = vbusmagmaxtmp
+                    if vbusmag[ibustmp] < vbusmagmintmp:
+                        vbusmag[ibustmp] = vbusmagmintmp
+                #round(1000000*vbusmag[ibustmp])/1000000
+
+
 
                 # updating the bus voltages based on the generators bus voltages
                 #for k in range(0,len(vgenbusnounique)):
