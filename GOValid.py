@@ -29,7 +29,8 @@
 # 0912  - imposing Pmin and Pmax during dispatch runs
 #       - re-assign slack bus after SCOPF solution
 #       - Run power flow without reactive limits to insure convergence
-
+# 1016  - Rounding voltage to 5 decimal points
+#       - SCOPF voltage tolerance is 0.01 instead of 0.02
 from __future__ import with_statement
 from contextlib import contextmanager
 
@@ -103,7 +104,7 @@ def id_cases(address):
 
 def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     # This is the 'root' directory name for a set of cases and supporting files
-    INL_with_header = 1
+    INL_with_header = 0
     # please modify it accordingly
     case = str(rawfile)[:-4]
     testcasecur = case
@@ -229,16 +230,19 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                 ierr, swsteps, swb = psspy.swsblk(ShuntBus[ishunt], iblk)
             #ierr, vswhi = psspy.swsdt1(ShuntBus[ishunt],'VSWHI')
             #ierr, vswlo = psspy.swsdt1(ShuntBus[ishunt],'VSWLO')
-            #ierr, Vpu = psspy.busdat(ShuntBus[ishunt] ,'PU')
+            #ierr, Vpu = psspy.busdat(.......0[ishunt] ,'PU')
                 if swb<0.0:
                     bnegative = bnegative + swb*swsteps
                 if swb>0.0:
                     bpositive = bpositive + swb*swsteps
             #if swsteps<5:
                 #ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar1=9,intgar2=9,intgar3=9,realar1=swsteps*swb/27.0,realar2=swsteps*swb/27.0,realar3=swsteps*swb/27.0)
-            ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar1=9,intgar2=9,intgar3=9,intgar4=9,intgar5=9,intgar6=9,intgar7=9,intgar8=9,realar1=bnegative/36.0,realar2=bnegative/36.0,realar3=bnegative/36.0,realar4=bnegative/36.0,
-                                               realar5=bpositive/36.0,realar6=bpositive/36.0,realar7=bpositive/36.0,realar8=bpositive/36.0)
-            
+            if bnegative!=0.0:
+                ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar1=9,intgar2=9,intgar3=9,intgar4=9,intgar5=9,intgar6=9,intgar7=9,intgar8=9,realar1=bnegative/36.0,realar2=bnegative/36.0,realar3=bnegative/36.0,realar4=bnegative/36.0,
+                                                   realar5=bpositive/36.0,realar6=bpositive/36.0,realar7=bpositive/36.0,realar8=bpositive/36.0)
+            elif bpositive!=0.0:
+                 ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar1=9,intgar2=9,intgar3=9,intgar4=9,realar1=bpositive/36.0,realar2=bpositive/36.0,realar3=bpositive/36.0,realar4=bpositive/36.0)
+               
             if vswhi==vswlo:
                 ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar9=1, realar9=vswhi+0.01, realar10=vswlo-0.01)
         print ('------------------ finished changing all switched shunts to discrete control mode ---------')
@@ -503,12 +507,12 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     print ('------------------start  SCOPF for case:' + case + '  ------------------')
     if 1:
         ierr = psspy.pscopf_2([0,0,0,0,1,0,1,0,0,0,0,0,1,0,4,1,3,1,2,30,2,1,1,0,0,0,0,1],
-                       [ 0.5, 100.0, 98.0, 0.02, 0.1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+                       [ 0.5, 100.0, 98.0, 0.01, 0.1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
                        [r"""ALL""",r"""ALL""",r"""ALL""",r"""ALL""",r"""ALL""",r"""ALL""",r"""ALL"""],
                        scopfdfx,fileINL, "")
     else:
         savecase = scopfaddress + '\\' + case + '_scopf.sav'
-        psspy.case(savecase)
+        #psspy.case(savecase)
     
     # We will select the largest gen capacity from SCOPF solution
     ACCClist = [1]
@@ -674,6 +678,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     for ibustmp in range(0, len(vbasebusno)):
         if vbasebusno[ibustmp] not in basebusvpu_dict.keys(): 
             ierr, vpu = psspy.busdat(vbasebusno[ibustmp],'PU')
+            vpu = round(100000*vpu)/100000.0
             basebusvpu_dict.update({vbasebusno[ibustmp]:vpu})
         if vbasebustype[ibustmp] == 3:
             swingbus.append(vbasebusno[ibustmp])
@@ -1019,23 +1024,26 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                                 #vgenq[k] is same
 
                 for ibustmp in range(0,len(vbusno)):
-                    if cont=='InitCase':
-                        vbusmagmaxtmp = round(1000*vbusmagmax[ibustmp])/1000.0
-                        vbusmagmintmp = round(1000*vbusmagmin[ibustmp])/1000.0
-                    else:
-                        #print vbusmag[ibustmp],vbusmagmaxtmp,vbusmagmintmp
-                        vbusmagmaxtmp = round(1000*vbusmagmaxcont[ibustmp])/1000.0
-                        vbusmagmintmp = round(1000*vbusmagmincont[ibustmp])/1000.0
-                        #if vgenbusno[ibustmp]==166:
-                        #    sys.exit()
-                    #if cont=='LINE-105-180-1':
-                    #    print vbusmagmaxtmp, vbusmagmintmp
-                    if vbusmag[ibustmp] > vbusmagmaxtmp:
-                        vbusmag[ibustmp] = vbusmagmaxtmp
-                    if vbusmag[ibustmp] < vbusmagmintmp:
-                        vbusmag[ibustmp] = vbusmagmintmp
-                #round(1000000*vbusmag[ibustmp])/1000000
+                    vbusmag[ibustmp] =  round(100000*vbusmag[ibustmp])/100000.0
 
+                if 1: # we don't need this for UWMAD
+                    for ibustmp in range(0,len(vbusno)):
+                        if cont=='InitCase':
+                            vbusmagmaxtmp = round(1000*vbusmagmax[ibustmp])/1000.0
+                            vbusmagmintmp = round(1000*vbusmagmin[ibustmp])/1000.0
+                        else:
+                            #print vbusmag[ibustmp],vbusmagmaxtmp,vbusmagmintmp
+                            vbusmagmaxtmp = round(1000*vbusmagmaxcont[ibustmp])/1000.0
+                            vbusmagmintmp = round(1000*vbusmagmincont[ibustmp])/1000.0
+                            #if vgenbusno[ibustmp]==166:
+                            #    sys.exit()
+                        #if cont=='LINE-105-180-1':
+                        #    print vbusmagmaxtmp, vbusmagmintmp
+                        if vbusmag[ibustmp] > vbusmagmaxtmp:
+                            vbusmag[ibustmp] = vbusmagmaxtmp
+                        if vbusmag[ibustmp] < vbusmagmintmp:
+                            vbusmag[ibustmp] = vbusmagmintmp
+                            
 
 
                 # updating the bus voltages based on the generators bus voltages
