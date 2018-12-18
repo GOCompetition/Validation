@@ -291,7 +291,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     finlorg = open (fileINL)
     inllines = finlorg.readlines()
 
-    finldst = open(scopfaddress+fileINL, 'w')
+    finldst = open(scopfaddress+'\\'+fileINL, 'w')
 
     #find the sum for all machines droop (need to normalize)
     totalinldroop = 0.0
@@ -341,7 +341,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     
     finldst.write(str(0) )
     finldst.close()
-    fileINL = scopfaddress+fileINL
+    fileINL = scopfaddress+'\\'+fileINL
     #sys.exit()
     print ('------------------finish checking Pmax Pmin in inl file -------------------')
 
@@ -911,7 +911,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     genptmp = vgenp[igentmp] * vgenstatus[igentmp]
                     
                     basegenp = basecase_gen_dict[genbuskeytmp]
-                    # to take into account o participation factors
+                    # to take into account 0 participation factors
                     if gendroop[genbuskeytmp]==0.0:
                         deltatmp=0.0
                         totalgendeltacount = totalgendeltacount - 1
@@ -1066,10 +1066,10 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             # solutin2file = address + '\\' + caseX +'\\'+caseX +"_" + str(cont)+'_solution2.txt'
             
             ############ below we start to write solution file for compeitiont format
-            solutin1file = scopfaddress + '\\' +case  + '_solution1.txt'
-            #solutin1file = address + '\\' +case  + '_solution1.txt'
-            solutin2file = scopfaddress + '\\' +case + '_solution2.txt'
-            #solutin2file = address + '\\' +case + '_solution2.txt'
+            #solutin1file = scopfaddress + '\\' +case  + '_solution1.txt'
+            solutin1file = address + '\\' +case  + '_solution1.txt'
+            #solutin2file = scopfaddress + '\\' +case + '_solution2.txt'
+            solutin2file = address + '\\' +case + '_solution2.txt'
             '''
             if os.path.exists(solutin1file):
                 os.remove (solutin1file)
