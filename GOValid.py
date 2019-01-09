@@ -29,15 +29,23 @@
 # 0912  - imposing Pmin and Pmax during dispatch runs
 #       - re-assign slack bus after SCOPF solution
 #       - Run power flow without reactive limits to insure convergence
-
+# 1016  - Rounding voltage to 5 decimal points
+#       - SCOPF voltage tolerance is 0.01 instead of 0.02
 from __future__ import with_statement
 from contextlib import contextmanager
 
 import sys, os, csv
 
-PSSE_LOCATION = r"C:\Program Files (x86)\PTI\PSSE33\PSSBIN"
-sys.path.append(PSSE_LOCATION)
-os.environ['PATH'] = os.environ['PATH'] + ';' +  PSSE_LOCATION 
+if 0:
+    sys_path_PSSE=r'C:\Program Files (x86)\PTI\PSSE34\PSSPY27'  #or where else you find the psspy.pyc
+    sys.path.append(sys_path_PSSE)
+    os_path_PSSE=r'C:\Program Files (x86)\PTI\PSSE34\PSSBIN'  # or where else you find the psse.exe
+    os.environ['PATH'] += ';' + os_path_PSSE
+else:
+    PSSE_LOCATION = r"C:\Program Files (x86)\PTI\PSSE33\PSSBIN"
+    sys.path.append(PSSE_LOCATION)
+    os.environ['PATH'] = os.environ['PATH'] + ';' +  PSSE_LOCATION
+    
 from COMPET_FORM_class import COMPET_FORM
 import redirect
 redirect.psse2py()
@@ -103,14 +111,14 @@ def id_cases(address):
 
 def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     # This is the 'root' directory name for a set of cases and supporting files
-    # please modify it accordingly
     INL_with_header = 0
+    # please modify it accordingly
     case = str(rawfile)[:-4]
     testcasecur = case
     # defining the supporting files, please modify them accordingly
     fileSub = str(subfile)
     fileMon = str(monfile)
-    fileCon = str(confile)
+    fileCon = address + str(confile)
     fileINL = str(inlfile)
 
     #address = os.getcwd()
@@ -217,7 +225,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             
         print ('------------------ finished change remote bus for all generators to self (0) ---------')
 
-    if 0: # not for SDET
+    if 1:
         print ('------------------ Change all switched shunts to discrete control mode ---------')
         ierr, iarray = psspy.aswshint(-1, 4, 'NUMBER')
         ShuntBus = iarray[0]
@@ -229,7 +237,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                 ierr, swsteps, swb = psspy.swsblk(ShuntBus[ishunt], iblk)
             #ierr, vswhi = psspy.swsdt1(ShuntBus[ishunt],'VSWHI')
             #ierr, vswlo = psspy.swsdt1(ShuntBus[ishunt],'VSWLO')
-            #ierr, Vpu = psspy.busdat(ShuntBus[ishunt] ,'PU')
+            #ierr, Vpu = psspy.busdat(.......0[ishunt] ,'PU')
                 if swb<0.0:
                     bnegative = bnegative + swb*swsteps
                 if swb>0.0:
@@ -237,12 +245,11 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             #if swsteps<5:
                 #ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar1=9,intgar2=9,intgar3=9,realar1=swsteps*swb/27.0,realar2=swsteps*swb/27.0,realar3=swsteps*swb/27.0)
             if bnegative!=0.0:
-                ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar1=9,intgar2=9,intgar3=9,intgar4=9,intgar5=9,intgar6=9,intgar7=9,intgar8=9,realar1=int(bnegative/36.0*100.0)/100.0,realar2=int(bnegative/36.0*100.0)/100.0,realar3=int(bnegative/36.0*100.0)/100.0,realar4=int(bnegative/36.0*100.0)/100.0,
-                                                   realar5=int(bpositive/36.0*100.0)/100.0,realar6=int(bpositive/36.0*100.0)/100.0,realar7=int(bpositive/36.0*100.0)/100.0,realar8=int(bpositive/36.0*100.0)/100.0)
+                ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar1=9,intgar2=9,intgar3=9,intgar4=9,intgar5=9,intgar6=9,intgar7=9,intgar8=9,realar1=bnegative/36.0,realar2=bnegative/36.0,realar3=bnegative/36.0,realar4=bnegative/36.0,
+                                                   realar5=bpositive/36.0,realar6=bpositive/36.0,realar7=bpositive/36.0,realar8=bpositive/36.0)
             elif bpositive!=0.0:
-                 ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar1=9,intgar2=9,intgar3=9,intgar4=9,realar1=int(bpositive/36.0*100.0)/100.0,realar2=int(bpositive/36.0*100.0)/100.0,realar3=int(bpositive/36.0*100.0)/100.0,realar4=int(bpositive/36.0*100.0)/100.0)
-            
-    
+                 ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar1=9,intgar2=9,intgar3=9,intgar4=9,realar1=bpositive/36.0,realar2=bpositive/36.0,realar3=bpositive/36.0,realar4=bpositive/36.0)
+               
             if vswhi==vswlo:
                 ierr = psspy.switched_shunt_chng_3(ShuntBus[ishunt], intgar9=1, realar9=vswhi+0.01, realar10=vswlo-0.01)
         print ('------------------ finished changing all switched shunts to discrete control mode ---------')
@@ -282,16 +289,16 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     #shutil.copyfile (fileINL, fileINL[:-4]+'_org.inl') #first keep a copy of the original inl file
     #fileINLorg = fileINL[:-4]+'_org.inl'
 
-    if 0:#os.path.exists(address+fileINL):
-        os.remove (address+fileINL)
+    if os.path.exists(address+case+fileINL):
+        os.remove (address+case+fileINL)
         #os.rename (fileINL, fileINLorg)
     #else:
     #    os.rename (fileINL, fileINLorg)
     
-    finlorg = open (fileINL)
+    finlorg = open (address+fileINL)
     inllines = finlorg.readlines()
 
-    finldst = open(scopfaddress+'\\'+fileINL, 'w')
+    finldst = open(address+case+fileINL, 'w')
 
     #find the sum for all machines droop (need to normalize)
     totalinldroop = 0.0
@@ -312,7 +319,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             header=0
             continue
         
-        print oneline
+        #print oneline
         if oneline.split()[0] == '0':
             break
         
@@ -323,15 +330,18 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         if genbuskeytmp in genbusdicttmp.keys():
             # Storing the generators droop for delta calculation
             #genbuskeytmp = str(igenbustmp)+'-'+igenidtmp
-            if float(partxt[5].strip())==0.0:
-                partxt[5] = "0.001"
+
             gendroop.update({genbuskeytmp: float(partxt[5].strip())/totalinldroop})
             # checking pmax and pmin values in inl file
             #if abs(float(partxt[3]) - 0.0 )<0.000001 and abs(float(partxt[4]) - 0.0 )<0.000001:    
-            if 1: # Impose Pmin and Pmax from case 
-                str_pmax = "%6.5f" %(genbusdicttmp[genbuskeytmp][0]/100.0)
-                str_pmin = "%6.5f" %(genbusdicttmp[genbuskeytmp][1]/100.0)
-                finldst.write(' '+ partxt[0].strip() + ',   ' + partxt[1].strip() + ',  ' + partxt[2].strip() + ',  ' + str_pmax + ',  ' + str_pmin + ',  ' + str(float(partxt[5].strip())/totalinldroop)  + ',  ' + partxt[6].strip() + '\n')
+            if 1: # Impose Pmin and Pmax from case
+                if float(partxt[5].strip())==0.0:
+                    str_pmax = "100.0"
+                    str_pmin = "100.0"
+                else:
+                    str_pmax = "%6.5f" %(genbusdicttmp[genbuskeytmp][0]/100.0)
+                    str_pmin = "%6.5f" %(genbusdicttmp[genbuskeytmp][1]/100.0)
+                finldst.write(' '+ partxt[0].strip() + ',   ' + partxt[1].strip() + ',  ' + partxt[2].strip() + ',  ' + str_pmax + ',  ' + str_pmin + ',  ' + str(format(float(partxt[5].strip())/totalinldroop,'.14f'))  + ',  ' + partxt[6].strip() + '\n')
             else:
                 finldst.write(oneline)
         else:
@@ -341,7 +351,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     
     finldst.write(str(0) )
     finldst.close()
-    fileINL = scopfaddress+'\\'+fileINL
+    fileINL = address+case+fileINL
     #sys.exit()
     print ('------------------finish checking Pmax Pmin in inl file -------------------')
 
@@ -373,7 +383,8 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         gen_tmp_info = zip(vtmpgenbusno, vtmpgenpgen) 
         gen_tmp_sorted = sorted(gen_tmp_info, key=lambda item:item[1], reverse=True) 
         psspy.bus_chng_3(gen_tmp_sorted[0][0],[3,_i,_i,_i],[_f,_f,_f,_f,_f,_f,_f],_s)  # change swing to type 3
-    '''   
+    '''
+    
     fcon = open (fileCon)
     conlines = fcon.readlines()
     cont_con_array = []
@@ -385,12 +396,12 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         #partxt = re.split(r'[\s]',oneline)
         partxt = oneline.split()
         #print partxt
-        
+        #print oneline
         if partxt[0] == 'CONTINGENCY':
             cont_tag = partxt[1]#.upper()
             cont_con_array.append(cont_tag)
-            
-        if (partxt[0] == 'REMOVE' and partxt[1] == 'UNIT') or (partxt[0] == 'REMOVE' and partxt[1] == 'MACHINE'):  
+          
+        if (partxt[0] == 'REMOVE' and partxt[1] == 'UNIT') or (partxt[0] == 'REMOVE' and partxt[1] == 'MACHINE'):
             
             valtmp = (partxt[5], partxt[2])
             valtmptag = partxt[5]+"-"+partxt[2]
@@ -400,7 +411,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             
             if partxt[5] in swingbus_str:
                 swingbusincont = True
-    
+
     fcon.close()
     
     print ('-------swingbus_str: ')
@@ -410,7 +421,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     
     # We will select the largest gen capacity # check if swing bus in contingency:
     ACCClist = [1]
-    if 0:#This is not needed for SDET
+    if 0:#swingbusincont:
         #sort in-service generators
         ierr, iarray = psspy.amachint(-1, 1, 'NUMBER')
         vtmpgenbusno = iarray[0]
@@ -472,13 +483,15 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         psspy.fnsl([0,0,0,1,1,0,0,0])    
         #psspy.save(address + '\\' + caseX + '_swigchng.sav')
         '''
+    else:
+        swingbus_new = [75646] # for original swing bus in case
     #print gen_tmp_info
     #print gen_tmp_sorted
     #print gen_tmp_sorted_2
     #print swingbus_tmp, swingbus_new
     #sys.exit()
     print ('------------------finish checking swing bus in con file -------------------')
-    psspy.fnsl([0,0,0,1,1,0,0,0])
+
     
     # prepare the participation factor file for ACCC and SCOPF
     scopfdfx = scopfaddress+'\\'+ case + '.dfx'
@@ -502,36 +515,36 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     
     psspy.rawd_2(0,1,[1,1,1,0,0,0,0],0, address + '\\' + caseX +'lim.raw')
     '''
-    #savecasebefore = scopfaddress + '\\' + case + '_scopf_before.sav'
-    #psspy.save(savecasebefore)
+    
     # RUN SCOPF from PSS/E
     print ('------------------start  SCOPF for case:' + case + '  ------------------')
-    if 1:
-        ierr = psspy.pscopf_2([0,0,0,0,1,0,1,0,0,0,0,0,1,0,4,1,3,1,2,30,2,1,1,0,0,0,0,1],
-                       [ 0.5, 100.0, 98.0, 0.02, 0.1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+    if 0:
+        ierr = psspy.pscopf_2([0,0,0,0,1,0,1,0,0,0,0,0,1,0,4,1,3,1,2,30,5,1,1,0,0,0,0,1],
+                       [ 0.5, 99.0, 99.0, 0.1, 0.1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
                        [r"""ALL""",r"""ALL""",r"""ALL""",r"""ALL""",r"""ALL""",r"""ALL""",r"""ALL"""],
                        scopfdfx,fileINL, "")
     else:
-        #savecase = scopfaddress + '\\' + case + '_scopfm1.sav'
-        rawcase = scopfaddress + '\\' + case + '_scopf.raw'
+        case = str(rawfile)[:-4]
+        psspy.read(0,address+case+'.raw')
+        savecase = scopfaddress + '\\' + case + '_scopf.sav'
         #psspy.case(savecase)
-        psspy.read(0,rawcase)
-    
-    print ("++++++++++++++++END OF PSCOPF SOLUTION FOR+++++++++++")
-    #sys.exit()
-    ACCClist = [1]
+        psspy.fnsl([0,0,0,1,1,0,0,0])
+        
     # We will select the largest gen capacity from SCOPF solution
-    if 0:# This is not needed for SDET 
+    ACCClist = [1]
+    if 1:#swingbusincont:
         #sort in-service generators
-        ierr, iarray = psspy.amachint(-1, 1, 'NUMBER')
+        #ierr, iarray = psspy.amachint(-1, 1, 'NUMBER')
+        ierr, iarray = psspy.agenbusint(-1, 1, 'NUMBER')
         vtmpgenbusno = iarray[0]
-        ierr, carray = psspy.amachchar(-1, 1, 'ID')
-        vtmpgenbusid = carray[0] 
-        ierr, rarray = psspy.amachreal(-1, 1, ['PGEN','PMAX'])
+        #ierr, carray = psspy.amachchar(-1, 1, 'ID')
+        #vtmpgenbusid = carray[0] 
+        #ierr, rarray = psspy.amachreal(-1, 1, ['PGEN','PMAX'])
+        ierr, rarray = psspy.agenbusreal(-1, 1, ['PGEN','PMAX'])
         vtmpgenpgen = rarray[0]
         vtmpgenpmax = rarray[1]
         #gen_tmp_info = zip(vtmpgenbusno, vtmpgenpgen)
-        gen_tmp_droop = [gendroop[str(a)+"-"+(str(b).strip())] for a,b in zip(vtmpgenbusno,vtmpgenbusid)]  
+        #gen_tmp_droop = [gendroop[str(a)+"-"+(str(b).strip())] for a,b in zip(vtmpgenbusno,vtmpgenbusid)]  
         #gen_tmp_info_2 = zip(vtmpgenbusno, [(genpmax-genpgen)/genpdroop for genpmax,genpgen,genpdroop in zip(vtmpgenpmax,vtmpgenpgen,gen_tmp_droop)]) 
         gen_tmp_info_2 = zip(vtmpgenbusno, [genpmax-genpgen for genpmax,genpgen in zip(vtmpgenpmax,vtmpgenpgen)]) 
         #gen_tmp_info = zip(vtmpgenbusno, [genpmax-genpgen for genpmax,genpgen in zip(vtmpgenpmax,vtmpgenpgen)]) 
@@ -540,7 +553,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
 
         # We will select the largest capacity as slack after SCOPF
         # change swing bus:
-        swingbus2 = gen_tmp_sorted_2[0][0]
+        swingbus2 = swingbus_new[0] # keep using the original slack bus#gen_tmp_sorted_2[0][0]
         psspy.bus_chng_3(swingbus2,[3,_i,_i,_i],[_f,_f,_f,_f,_f,_f,_f],_s)  # change swing to type 3
         swingbus_new_scopf.append(swingbus2)
         for ibus in range(0, len(swingbus_new)):
@@ -554,7 +567,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             if  str(gen_tmp_sorted_2[igen][0]) not in cont_genbus_array:
                 newswingbus2 = gen_tmp_sorted_2[igen][0]
                 break
-                
+        newswingbus2 = -1 # to enforce using a second swing bus rather than using a weak one    
         if newswingbus2 != -1:
             print ('!!!!!!!!!!!--------new swing bus find, is bus: ' + str(newswingbus2) + '   ----------------!!!!!')   
             
@@ -566,30 +579,45 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         else:
             # we need to do a second run of ACCC for gen slack cont
             # Generate a con file for slack gen contingency
-            fileSlackCon = address + "\\" + "slackcon.con"
-            
+            fileSlackCon = address + "\\" + case+"slackcon.con"
+            slkcon = open(fileSlackCon, 'w')
             for iswing in cont_gen_tag.keys():
                 swingbusno = iswing.split("-")[0]
                 if int(swingbusno) == swingbus_new_scopf[0]:
-                    slkcon = open(fileSlackCon, 'w')
                     slackcontag = cont_gen_tag[iswing]
                     swingbusid = iswing.split("-")[1]
                     slkcon.write("CONTINGENCY " + slackcontag + "\n")
                     slkcon.write("REMOVE MACHINE "+str(swingbusid)+" FROM BUS "+ str(swingbusno)+"\n")
                     slkcon.write("END\n")
-                    slkcon.write("END\n")
-                    slkcon.close()
-                    break
+                    #break
+            slkcon.write("END\n")
+            slkcon.close()
                 
+            print "Choosing a new swing bus for second ACCC run"
+            secondswingbus = -1
             for igen in range(0, len(gen_tmp_sorted_2)):
-                if  gen_tmp_sorted_2[igen][0] not in swingbus_new_scopf:
-                    secondswingbus = gen_tmp_sorted_2[igen][0]
-                    ACCClist.append(secondswingbus)
+                ierr = psspy.bsys(7, 0,[0.2,999.0],0,[],1,[gen_tmp_sorted_2[igen][0]],0,[],0,[])
+                ierr, carray = psspy.amachchar(7,1,'ID')
+                ierr, iarray = psspy.amachint(7,1,'NUMBER')
+                #print carray #making sure there is only one machine at that bus
+                for igensub in range(len(carray[0])):
+                    igenbustmp = iarray[0][igensub]
+                    igenidtmp = (carray[0][igensub]).strip()
+                    genbuskeytmp = str(igenbustmp)+'-'+igenidtmp
+                    gendroop_swing = gendroop[genbuskeytmp]
+                    #print igenbustmp,gendroop_swing
+                    #print gen_tmp_sorted_2[igen][0], swingbus_new_scopf, gendroop_swing
+                    if  (gen_tmp_sorted_2[igen][0] not in swingbus_new_scopf) and gendroop_swing!=0.0:# make sure swing bus does not have zero droop
+                        secondswingbus = gen_tmp_sorted_2[igen][0]
+                        ACCClist.append(secondswingbus)
+                        break
+                if secondswingbus!=-1:
                     break
-            
-        psspy.fnsl([0,0,0,1,1,0,0,0])  
-
-
+        psspy.fnsl([0,0,0,1,1,0,0,0])
+        #print swingbus_new, swingbus_new_scopf, newswingbus2, secondswingbus
+        #sys.exit()
+    #print swingbus_new_scopf, swingbus_new, newswingbus2
+    #sys.exit()
     if 0:#newswingbus==-1: #We couldn't find a gen bus that is not in the cont list
         # determine the second generator to choose as slack based on SCOPF solution
         #sort in-service generators
@@ -611,8 +639,8 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                 secondswingbus = gen_tmp_sorted_2[igen][0]
                 ACCClist.append(secondswingbus)
                 break
-        print gen_tmp_sorted
-        print secondswingbus, swingbus_new
+        #print gen_tmp_sorted
+        #print secondswingbus, swingbus_new
 
 
     # write the flag whether the SCOPF is successful or not
@@ -643,13 +671,13 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         print ('------------------ finished change voltage set point for generators at Qmax or Qmin ---------')
 
     # save case
+    psspy.fnsl([0,0,0,1,1,0,0,0])
     savecase = scopfaddress + '\\' + case + '_scopf.sav'
     psspy.save(savecase)
     psspy.rawd_2(0,1,[1,1,1,0,0,0,0],0,scopfaddress + '\\' + case +'_scopf.raw')   
     
     print ('------------------finish SCOPF for case:' + case + '  ------------------')
-
-
+    
     #sys.exit()
     # run ACCC for the new case from SCOPF
     psspy.case(savecase)
@@ -683,6 +711,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     for ibustmp in range(0, len(vbasebusno)):
         if vbasebusno[ibustmp] not in basebusvpu_dict.keys(): 
             ierr, vpu = psspy.busdat(vbasebusno[ibustmp],'PU')
+            vpu = round(100000*vpu)/100000.0
             basebusvpu_dict.update({vbasebusno[ibustmp]:vpu})
         if vbasebustype[ibustmp] == 3:
             swingbus.append(vbasebusno[ibustmp])
@@ -749,7 +778,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                           namesplit, xlsfile, sheet, overwritesheet, show, ratecon,baseflowvio, basevoltvio, flowlimit, flowchange, voltchange)
             excelfile = excelpy.workbook(xlsfile)
             excelfile.close()
-        #sys.exit("finish ACCC solution")
+        
         # Saving post-contingency cases
         archive = zipfile.ZipFile(Zip, 'r')
         ziplist = archive.namelist()
@@ -765,9 +794,8 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         sheet_bf = workbook_accc.sheet_by_name('Contingency Events')
         
         cases_delta_dict = {}  
-    
-        #if 0:
-        for isvfile in isvfiles: #Temp 1206
+
+        for isvfile in isvfiles:
             #print isvfile
             if isvfile!='InitCase':
                 contno = re.findall('\d+',isvfile)#[int(s) for s in isvfile if s.isdigit()]
@@ -798,7 +826,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                 #print cont
                 #continue
                 #psspy.fnsl([0,0,0,1,1,0,-1,0])
-                #psspy.fnsl([0,0,0,1,1,0,0,0])
+                psspy.fnsl([0,0,0,1,1,0,0,0])
             else:
                 if icon>0:
                     continue
@@ -830,6 +858,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                             
                     #ierr = psspy.fnsl([0,0,0,1,1,0,0,0])
                     #ierr = psspy.fnsl([0,0,0,1,1,0,-1,0])
+                    #psspy.fdns([0,0,0,1,1,0,0,0])
                     ierr = psspy.fnsl([0,0,0,1,1,0,0,0])
                     #ierr = psspy.inlf_2([1,0,0,0,1,0,0,0], fileINL)
         
@@ -913,8 +942,9 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     basegenp = basecase_gen_dict[genbuskeytmp]
                     # to take into account 0 participation factors
                     if gendroop[genbuskeytmp]==0.0:
+                        continue
                         deltatmp=0.0
-                        totalgendeltacount = totalgendeltacount - 1
+                        totalgendeltacount = totalgendeltacount - 2
                     else:
                         deltatmp = (genptmp - basegenp)/gendroop[genbuskeytmp]
                     deltatmpmw = genptmp - basegenp
@@ -941,6 +971,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                         contgen_info = cont_gen_dict[cont]
                         # machine is excluded from the calculation if tripped 
                         if  str(vgenbusno[igentmp]) == contgen_info[0] and vgenid[igentmp].strip() == contgen_info[1]:
+                            continue
                             totalgendeltacount = totalgendeltacount - 1
                             deltatmp = 0.0
                             deltatmpmw = 0.0
@@ -951,6 +982,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     vgenpmin[igentmp] = round(1000.0*vgenpmin[igentmp])/1000.0
                     vgenp[igentmp] = round(1000.0*vgenp[igentmp])/1000.0
                     if (vgenp[igentmp] == vgenpmax[igentmp] or vgenp[igentmp] == vgenpmin[igentmp]) and vgenstatus[igentmp]!=0 :
+                        continue
                         totalgendeltacount = totalgendeltacount - 1
                         deltatmp = 0.0
                         #deltatmpmw = 0.0
@@ -958,6 +990,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
 
                     # machine should also be excluded if out of service
                     if basegenstat == 0 and vgenstatus[igentmp] == 0:
+                        continue
                         totalgendeltacount = totalgendeltacount - 1
                         
                     if deltatmp!=0.0:
@@ -965,6 +998,8 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     totalgendelta = totalgendelta + deltatmp
                     totalgendeltamw = totalgendeltamw + deltatmpmw
                     totalgendeltacount = totalgendeltacount + 1
+                    #print igentmp,vgenp[igentmp],vgenpmax[igentmp],vgenpmin[igentmp],vgenstatus[igentmp]
+                    #print totalgendelta, totalgendeltacount
 
                 totalgendeltamean =  totalgendelta/totalgendeltacount
                 #totalgendeltamedian = numpy.median(totalgendelta_list)
@@ -1005,44 +1040,51 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     if vgenp[igentmp] < vgenpmin[igentmp]:
                         vgenp[igentmp] = vgenpmin[igentmp]
 
-                for ibustmp in range(0,len(vbusno)):
-                    if cont=='InitCase':
-                        vbusmagmaxtmp = round(1000*vbusmagmax[ibustmp])/1000.0
-                        vbusmagmintmp = round(1000*vbusmagmin[ibustmp])/1000.0
-                    else:
-                        vbusmagmaxtmp = round(1000*vbusmagmaxcont[ibustmp])/1000.0
-                        vbusmagmintmp = round(1000*vbusmagmincont[ibustmp])/1000.0
-                    #if cont=='LINE-105-180-1':
-                    #    print vbusmagmaxtmp, vbusmagmintmp
-                    if vbusmag[ibustmp] > vbusmagmaxtmp:
-                        vbusmag[ibustmp] = vbusmagmaxtmp
-                    if vbusmag[ibustmp] < vbusmagmintmp:
-                        vbusmag[ibustmp] = vbusmagmintmp
-                #round(1000000*vbusmag[ibustmp])/1000000
-
                 if cont!='InitCase':
                     for k in range(0,len(vgenbusno)):
                         ierr, genvpu = psspy.busdat(vgenbusno[k],'PU')
                         basegenvpu = basebusvpu_dict[vgenbusno[k]]
-                        if vgenstatus[k]: # to avoid modifying qgen for a switched off generator
-                            if genvpu<basegenvpu:
-                                if (basegenvpu-genvpu)>(vgenqmax[k]-vgenq[k])/100:
-                                    vgenq[k]=vgenqmax[k]
-                                    #vgenbusvpu[k] is same
-                                else:
-                                    vbusindx = vbusno.index(vgenbusno[k])
-                                    vbusmag[vbusindx] = basegenvpu
-                                    #vgenbusvpu[k] = vbasecasegenbusvpu[k]
-                                    # vgenq[k] is same
-                            if genvpu>basegenvpu:
-                                if (genvpu-basegenvpu)>(vgenq[k]-vgenqmin[k])/100:
-                                    vgenq[k] = vgenqmin[k]
-                                    # vgenbusvpu[k] is same
-                                else:
-                                    vbusindx = vbusno.index(vgenbusno[k])
-                                    vbusmag[vbusindx] = basegenvpu
-                                    #vgenbusvpu[k] = vbasecasegenbusvpu[k]
-                                    #vgenq[k] is same
+                        if genvpu<basegenvpu:
+                            if (basegenvpu-genvpu)>(vgenqmax[k]-vgenq[k])/100:
+                                vgenq[k]=vgenqmax[k]
+                                #vgenbusvpu[k] is same
+                            else:
+                                vbusindx = vbusno.index(vgenbusno[k])
+                                vbusmag[vbusindx] = basegenvpu
+                                #vgenbusvpu[k] = vbasecasegenbusvpu[k]
+                                # vgenq[k] is same
+                        if genvpu>basegenvpu:
+                            if (genvpu-basegenvpu)>(vgenq[k]-vgenqmin[k])/100:
+                                vgenq[k] = vgenqmin[k]
+                                # vgenbusvpu[k] is same
+                            else:
+                                vbusindx = vbusno.index(vgenbusno[k])
+                                vbusmag[vbusindx] = basegenvpu
+                                #vgenbusvpu[k] = vbasecasegenbusvpu[k]
+                                #vgenq[k] is same
+
+                for ibustmp in range(0,len(vbusno)):
+                    vbusmag[ibustmp] =  round(100000*vbusmag[ibustmp])/100000.0
+
+                if 1: # we don't need this for UWMAD
+                    for ibustmp in range(0,len(vbusno)):
+                        if cont=='InitCase':
+                            vbusmagmaxtmp = round(1000*vbusmagmax[ibustmp])/1000.0
+                            vbusmagmintmp = round(1000*vbusmagmin[ibustmp])/1000.0
+                        else:
+                            #print vbusmag[ibustmp],vbusmagmaxtmp,vbusmagmintmp
+                            vbusmagmaxtmp = round(1000*vbusmagmaxcont[ibustmp])/1000.0
+                            vbusmagmintmp = round(1000*vbusmagmincont[ibustmp])/1000.0
+                            #if vgenbusno[ibustmp]==166:
+                            #    sys.exit()
+                        #if cont=='LINE-105-180-1':
+                        #    print vbusmagmaxtmp, vbusmagmintmp
+                        if vbusmag[ibustmp] > vbusmagmaxtmp:
+                            vbusmag[ibustmp] = vbusmagmaxtmp
+                        if vbusmag[ibustmp] < vbusmagmintmp:
+                            vbusmag[ibustmp] = vbusmagmintmp
+                            
+
 
                 # updating the bus voltages based on the generators bus voltages
                 #for k in range(0,len(vgenbusnounique)):
@@ -1066,9 +1108,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             # solutin2file = address + '\\' + caseX +'\\'+caseX +"_" + str(cont)+'_solution2.txt'
             
             ############ below we start to write solution file for compeitiont format
-            #solutin1file = scopfaddress + '\\' +case  + '_solution1.txt'
             solutin1file = address + '\\' +case  + '_solution1.txt'
-            #solutin2file = scopfaddress + '\\' +case + '_solution2.txt'
             solutin2file = address + '\\' +case + '_solution2.txt'
             '''
             if os.path.exists(solutin1file):
@@ -1081,11 +1121,11 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             
             # save each post-contingency case in both raw and sav format
             #psspy.save(scopfaddress + '\\' + case +'\\'+case +"_" + str(cont)+'.sav')
-            #psspy.rawd_2(0,1,[1,1,1,0,0,0,0],0,scopfaddress + '\\' + case + '\\' + case +"_" + str(cont)+'.raw')
+            psspy.rawd_2(0,1,[1,1,1,0,0,0,0],0,scopfaddress + '\\' + case + '\\' + case +"_" + str(cont)+'.raw')
     
     # if cont_con_array is not empty, which means ACCC ignores some contingencies, 
     # output solution1 as solution2 for these contingencies 
-    if cont_con_array: #Temp 1206
+    if cont_con_array:
         print ('!!!!!!!!!!!!------------cont_con_array is not empty!--------------')
         for icon in range(0, len(cont_con_array)):
             conttmp = cont_con_array[icon]
@@ -1110,19 +1150,19 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     for casetmp in cases_delta_dict.keys():
         print(casetmp  + '  delta:  ' + str(cases_delta_dict[casetmp]))
             
-    print ' +++++++++++++++DONE+++++++++++++++++++'
+    print ' +++++++++++++++done'
+
 
 '''
-
-rawfile = '4_10_0_newbus3000_2375.raw'#'WiiliamnV9_33pti.raw' #'case.raw'
-confile = 'case3000_full_mod.con'#'case.con'
-inlfile = 'case3000.inl'#'case.inl'
+rawfile = 'WiiliamnV9_33pti.raw' #'case.raw'
+confile = 'case.con'
+inlfile = 'case.inl'
 monfile = 'All.mon'
 subfile = 'All_SDET.sub'
-address = 'C:\\Users\\tbai440\\Desktop\\My Files\\SDET\\SDET_3000\\'#'Z:\\tbai440\\SDET\\WinSCP\\UWMAD_8000_20181003\\case1\\'
+address = 'Z:\\tbai440\\SDET\\WinSCP\\UWMAD_8000_20181003\\case1\\'
 
-#with silence():
-GOValid_func(rawfile,confile,inlfile,monfile,subfile,address)
+with silence():
+    GOValid_func(rawfile,confile,inlfile,monfile,subfile,address)
             
 
 GOValid_func('case14.raw','case14.con','case14.inl','All.mon','All_SDET.sub')
