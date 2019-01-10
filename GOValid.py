@@ -525,7 +525,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                        scopfdfx,fileINL, "")
     else:
         case = str(rawfile)[:-4]
-        psspy.read(0,address+case+'.raw')
+        #psspy.read(0,address+case+'.raw')
         savecase = scopfaddress + '\\' + case + '_scopf.sav'
         #psspy.case(savecase)
         psspy.fnsl([0,0,0,1,1,0,0,0])
