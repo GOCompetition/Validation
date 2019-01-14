@@ -331,7 +331,8 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             # Storing the generators droop for delta calculation
             #genbuskeytmp = str(igenbustmp)+'-'+igenidtmp
 
-            gendroop.update({genbuskeytmp: float(partxt[5].strip())/totalinldroop})
+            #gendroop.update({genbuskeytmp: float(partxt[5].strip())/totalinldroop})
+            gendroop.update({genbuskeytmp: float(genbusdicttmp[genbuskeytmp][0]/100.0)})
             # checking pmax and pmin values in inl file
             #if abs(float(partxt[3]) - 0.0 )<0.000001 and abs(float(partxt[4]) - 0.0 )<0.000001:    
             if 1: # Impose Pmin and Pmax from case
@@ -341,7 +342,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                 else:
                     str_pmax = "%6.5f" %(genbusdicttmp[genbuskeytmp][0]/100.0)
                     str_pmin = "%6.5f" %(genbusdicttmp[genbuskeytmp][1]/100.0)
-                finldst.write(' '+ partxt[0].strip() + ',   ' + partxt[1].strip() + ',  ' + partxt[2].strip() + ',  ' + str_pmax + ',  ' + str_pmin + ',  ' + str(format(float(partxt[5].strip())/totalinldroop,'.14f'))  + ',  ' + partxt[6].strip() + '\n')
+                finldst.write(' '+ partxt[0].strip() + ',   ' + partxt[1].strip() + ',  ' + partxt[2].strip() + ',  ' + str_pmax + ',  ' + str_pmin + ',  ' + str(genbusdicttmp[genbuskeytmp][0]/100.0)  + ',  ' + partxt[6].strip() + '\n')
             else:
                 finldst.write(oneline)
         else:
@@ -837,18 +838,18 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             iter=0
             deltaerror=100.0
             totalgendeltamean = 0.0
-            while deltaerror>1.0 and iter<10:#for kkk in range(10):
+            while deltaerror>1.0 and iter<20:#for kkk in range(10):
                 iter = iter+1
                 if iter>1:
                     #need to generators based on delta
-                    for igentmp in range(0, len(vgenbusno)):
+                    for igentmp in range(0, len(vgenbusno)):  
                         if vgenstatus[igentmp]==1 and not (vgenp[igentmp]==vgenpmax[igentmp] or vgenp[igentmp]==vgenpmin[igentmp]):
                             genbuskeytmp = str(vgenbusno[igentmp])+'-'+vgenid[igentmp].strip()
                             gendrooptmp = gendroop[genbuskeytmp]
                             basegenp = basecase_gen_dict[genbuskeytmp]
 
                             newpgentmp = basegenp+totalgendeltamean*gendrooptmp
-
+                            
                             if newpgentmp>vgenpmax[igentmp]:
                                 newpgentmp=vgenpmax[igentmp]
                             if newpgentmp<vgenpmin[igentmp]:
@@ -981,7 +982,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     vgenpmax[igentmp] = round(1000.0*vgenpmax[igentmp])/1000.0
                     vgenpmin[igentmp] = round(1000.0*vgenpmin[igentmp])/1000.0
                     vgenp[igentmp] = round(1000.0*vgenp[igentmp])/1000.0
-                    if (vgenp[igentmp] == vgenpmax[igentmp] or vgenp[igentmp] == vgenpmin[igentmp]) and vgenstatus[igentmp]!=0 :
+                    if (vgenp[igentmp] >= vgenpmax[igentmp] or vgenp[igentmp] == vgenpmin[igentmp]) and vgenstatus[igentmp]!=0 :
                         continue
                         totalgendeltacount = totalgendeltacount - 1
                         deltatmp = 0.0
@@ -1000,8 +1001,13 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     totalgendeltacount = totalgendeltacount + 1
                     #print igentmp,vgenp[igentmp],vgenpmax[igentmp],vgenpmin[igentmp],vgenstatus[igentmp]
                     #print totalgendelta, totalgendeltacount
-
-                totalgendeltamean =  totalgendelta/totalgendeltacount
+                if True: # use mean
+                    totalgendeltamean = totalgendelta/totalgendeltacount
+                else: # use median
+                    if totalgendelta_list!=[]:
+                        totalgendeltamean = numpy.median(totalgendelta_list)
+                    else:
+                        totalgendeltamean = 0
                 #totalgendeltamedian = numpy.median(totalgendelta_list)
 
                 # calculate delta error
