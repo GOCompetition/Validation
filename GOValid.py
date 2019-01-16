@@ -485,7 +485,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         #psspy.save(address + '\\' + caseX + '_swigchng.sav')
         '''
     else:
-        swingbus_new = [75646] # for original swing bus in case
+        swingbus_new = swingbus_tmp#[75646] # for original swing bus in case
     #print gen_tmp_info
     #print gen_tmp_sorted
     #print gen_tmp_sorted_2
@@ -949,7 +949,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     else:
                         deltatmp = (genptmp - basegenp)/gendroop[genbuskeytmp]
                     deltatmpmw = genptmp - basegenp
-
+                    
                     # check the amount of generation lost
                     basegenstat = basecase_gen_dict_stat[genbuskeytmp]
                     if basegenstat == 1 and vgenstatus[igentmp] == 0:
@@ -1001,9 +1001,12 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     totalgendeltacount = totalgendeltacount + 1
                     #print igentmp,vgenp[igentmp],vgenpmax[igentmp],vgenpmin[igentmp],vgenstatus[igentmp]
                     #print totalgendelta, totalgendeltacount
-                if True: # use mean
-                    totalgendeltamean = totalgendelta/totalgendeltacount
-                else: # use median
+                if 1:
+                    if totalgendeltacount!=0:
+                        totalgendeltamean = totalgendelta/totalgendeltacount
+                    else:
+                        totalgendeltamean = 0
+                else:
                     if totalgendelta_list!=[]:
                         totalgendeltamean = numpy.median(totalgendelta_list)
                     else:
