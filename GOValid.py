@@ -189,7 +189,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         psspy.bus_chng_3(9,intgar1 = 3)
         psspy.bus_chng_3(17,intgar1 = 2)
         
-    psspy.solution_parameters_4(intgar2 = 40)
+    psspy.solution_parameters_4(intgar2 = 40,realar11 = 0.1E-04)
     psspy.fnsl([0,0,0,1,1,0,0,0])
     
     # Check if case has nonzero ratings
@@ -486,6 +486,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
         '''
     else:
         swingbus_new = swingbus_tmp#[75646] # for original swing bus in case
+        
     #print gen_tmp_info
     #print gen_tmp_sorted
     #print gen_tmp_sorted_2
@@ -501,7 +502,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
     #logFile = file(Progress, "a")
     #sys.stdout = logFile
     psspy.dfax([1, 1], fileSub, fileMon, fileCon, scopfdfx)
-    psspy.solution_parameters_4(intagar=[_i,150,_i])
+    psspy.solution_parameters_4(intgar2 = 40,realar11 = 0.1E-04)
 
     '''
     # may need to change the normal volt max and min here
@@ -767,7 +768,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                 psspy.bus_chng_3(swingbus_new_scopf[ibus],[2,_i,_i,_i],[_f,_f,_f,_f,_f,_f,_f],_s)  # change swing to type 2
             psspy.fnsl([0,0,0,1,1,0,0,0])
             psspy.dfax([1, 1], fileSub, fileMon, fileSlackCon, acccdfx)
-        psspy.solution_parameters_4(intagar=[_i,150,_i])
+        psspy.solution_parameters_4(intgar2 = 40,realar11 = 0.1E-04)
         
         # run ACCC
         
@@ -841,7 +842,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             while deltaerror>1.0 and iter<20:#for kkk in range(10):
                 iter = iter+1
                 if iter>1:
-                    #need to generators based on delta
+                    #need to generators based on delta               
                     for igentmp in range(0, len(vgenbusno)):  
                         if vgenstatus[igentmp]==1 and not (vgenp[igentmp]==vgenpmax[igentmp] or vgenp[igentmp]==vgenpmin[igentmp]):
                             genbuskeytmp = str(vgenbusno[igentmp])+'-'+vgenid[igentmp].strip()
@@ -949,7 +950,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                     else:
                         deltatmp = (genptmp - basegenp)/gendroop[genbuskeytmp]
                     deltatmpmw = genptmp - basegenp
-                    
+
                     # check the amount of generation lost
                     basegenstat = basecase_gen_dict_stat[genbuskeytmp]
                     if basegenstat == 1 and vgenstatus[igentmp] == 0:
