@@ -339,7 +339,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                 if float(partxt[5].strip())==0.0:
                     str_pmax = "100.0"
                     str_pmin = "100.0"
-                    gen_droop = 1.0
+                    gen_droop = 0.0
                 else:
                     str_pmax = "%6.5f" %(genbusdicttmp[genbuskeytmp][0]/100.0)
                     str_pmin = "%6.5f" %(genbusdicttmp[genbuskeytmp][1]/100.0)
@@ -741,9 +741,12 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
 
     # remove exising solution files
     case = case + '_scopf_accc'
+    ipart = fileCon[-5]
+    #solutin1file = address + '\\' +case  + '_solution1.txt'
     solutin1file = address + '\\' +case  + '_solution1.txt'
     if os.path.exists(solutin1file):
         os.remove (solutin1file)
+    #solutin2file = address + '\\' +case + '_solution2.txt'
     solutin2file = address + '\\' +case + '_solution2.txt'
     if os.path.exists(solutin2file):
         os.remove (solutin2file)
@@ -848,6 +851,25 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                 iter = iter+1
                 if iter>1:
                     #need to generators based on delta
+                    '''
+                    deltamod = 0 # modification 0111
+                    for igentmp in range(0, len(vgenbusno)):
+                        genbuskeytmp = str(vgenbusno[igentmp])+'-'+vgenid[igentmp].strip()
+                        # Check the amount of delta that appears in slack bus
+                        if genbuskeytmp in swing_gen: 
+                            if vgenstatus[igentmp]==1 and not (vgenp[igentmp]==vgenpmax[igentmp] or vgenp[igentmp]==vgenpmin[igentmp]):
+                                gendrooptmp = gendroop[genbuskeytmp]
+                                basegenp = basecase_gen_dict[genbuskeytmp]
+
+                                newpgentmp = basegenp+totalgendeltamean*gendrooptmp
+                                
+                                if newpgentmp>vgenpmax[igentmp]:
+                                    extrapgen = newpgentmp-vgenpmax[igentmp]
+                                    deltamod = deltamod + totalgendeltamean - extrapgen/gendrooptmp
+                                    newpgentmp=vgenpmax[igentmp]
+                                    
+                    totalgendeltamean = totalgendeltamean #+ deltamod*0.01# correction for delta based on swing
+                    '''
                     for igentmp in range(0, len(vgenbusno)):  
                         if vgenstatus[igentmp]==1:# and not (vgenp[igentmp]==vgenpmax[igentmp] or vgenp[igentmp]==vgenpmin[igentmp]):
                             genbuskeytmp = str(vgenbusno[igentmp])+'-'+vgenid[igentmp].strip()
@@ -860,7 +882,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                                 newpgentmp=vgenpmax[igentmp]
                             if newpgentmp<vgenpmin[igentmp]:
                                 newpgentmp=vgenpmin[igentmp]
-                            #print newpgentmp,basegenp,totalgendeltamean,gendrooptmp,totalgendeltamean*gendrooptmp
+                            print newpgentmp,basegenp,totalgendeltamean,gendrooptmp,totalgendeltamean*gendrooptmp
                             ierr = psspy.machine_chng_2(vgenbusno[igentmp], vgenid[igentmp], realar1=newpgentmp)#vgenp[igentmp]-deltatmp_swing/swing_count+0.95*totalgendeltamedian*slackdroop)
                             
                     #ierr = psspy.fnsl([0,0,0,1,1,0,0,0])
@@ -944,9 +966,19 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                 swing_count = 0.0
                 for igentmp in range(0, len(vgenbusno)):
                     genbuskeytmp = str(vgenbusno[igentmp])+'-'+vgenid[igentmp].strip()
-                    genptmp = vgenp[igentmp] * vgenstatus[igentmp]
-                    
+                    genptmp = vgenp[igentmp] * vgenstatus[igentmp]                    
                     basegenp = basecase_gen_dict[genbuskeytmp]
+
+                    deltatmpmw = genptmp - basegenp
+                    # Check the amount of delta that appears in slack bus
+                    if genbuskeytmp in swing_gen:
+                        deltatmpmw = -deltatmpmw
+                        #deltatmp = -deltatmp
+                        deltatmp_swing = deltatmp_swing + deltatmpmw
+                        swing_count = swing_count+1.0
+                        
+                        #print('!!!!testout-----------------Swing Gen is ' + genbuskeytmp + ': ' + str(deltatmp))
+                    
                     # to take into account 0 participation factors
                     if gendroop[genbuskeytmp]==0.0:
                         continue
@@ -954,21 +986,15 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                         totalgendeltacount = totalgendeltacount - 2
                     else:
                         deltatmp = (genptmp - basegenp)/gendroop[genbuskeytmp]
-                    deltatmpmw = genptmp - basegenp
+                    
+                    print "print delta instant"
+                    print genbuskeytmp,deltatmp
+                    print genptmp,basegenp,gendroop[genbuskeytmp]
 
                     # check the amount of generation lost
                     basegenstat = basecase_gen_dict_stat[genbuskeytmp]
                     if basegenstat == 1 and vgenstatus[igentmp] == 0:
                         genloss = genloss + basegenp
-                    
-                    # Check the amount of delta that appears in slack bus
-                    if genbuskeytmp in swing_gen:
-                        deltatmpmw = -deltatmpmw
-                        deltatmp = -deltatmp
-                        deltatmp_swing = deltatmp_swing + deltatmpmw
-                        swing_count = swing_count+1.0
-                        
-                        #print('!!!!testout-----------------Swing Gen is ' + genbuskeytmp + ': ' + str(deltatmp))
                         
                     vgen_delta_dict.update({genbuskeytmp:deltatmp})                    
                     tmpstr = 'GEN-'+genbuskeytmp
@@ -1010,7 +1036,9 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
                         totalgendeltacount = totalgendeltacount + 1
                     #print igentmp,vgenp[igentmp],vgenpmax[igentmp],vgenpmin[igentmp],vgenstatus[igentmp]
                     #print totalgendelta, totalgendeltacount
-                        
+                print "print delta list"
+                print totalgendelta_list
+                print totalgendelta,totalgendeltacount,deltatmp_swing/swing_count*0.01,deltatmp_swing,swing_count
                 if 1:
                     if totalgendeltacount!=0:
                         totalgendeltamean = totalgendelta/totalgendeltacount - deltatmp_swing/swing_count*0.01
@@ -1127,7 +1155,7 @@ def GOValid_func(rawfile,confile,inlfile,monfile,subfile,address):
             # solutin2file = address + '\\' + caseX +'\\'+caseX +"_" + str(cont)+'_solution2.txt'
             
             ############ below we start to write solution file for compeitiont format
-            solutin1file = address + '\\' +case  + '_solution1.txt'
+            solutin1file = address + '\\' +case + '_solution1.txt'
             solutin2file = address + '\\' +case + '_solution2.txt'
             '''
             if os.path.exists(solutin1file):
